@@ -19,10 +19,59 @@ Scramb.py is a region based JPEG Image Scrambler
 *In this example, only Lenna's face was scrambled and the scrambled image is password protected. You can actually try the example images in this repo with scramb.py yourself!*
 *Also, people get offended when Lenna is used (although, now we also have Fabio, which I use as a Black/White Test Image!... so, Lenna is scrambled here in this repo :-)*
 
-
 ## Use cases
 - Offend the easily offended *less*: Upload pictures to sites like Twitter, Facebook, DeviantArt etc. (esp. Social Media) that normally trigger people to report these *despite* being okay and according to TOS of the site.
 - Upload a pic as a teaser but give away the password only to a small section of people
+
+# Usage
+
+## Scramble
+`scramb.py -i <inputfile> [-m <mask.png/.jpg>] -o <outputfile.jpg>  [OPTIONS]`
+
+You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
+
+## Descramble
+`scramb.py <inputfile.jpg>` also usable for drag & drop
+
+`scramb.py -i <inputfile.jpg> -o <outputfile.jpg>`
+
+## Calculate Residue
+`scramb.py -r <imagefile1.jpg> <imagefile2.jpg>`
+
+## Options
+### -x <number> -y <number> -z <number>
+Specific parameter for the chosen scrambler
+
+### -s <scrambler>
+The scrambler to be used
+
+scrambler | x | y | z | What it does
+--- | --- | --- | --- | ---
+`matrix` | seed | turn percentage (10=10%, 100=100%, 170=170% | - | turns a group of 2x2 blocks clockwise. Does not work on lonely pixels.
+`medium` | seed | rounds | distance | moves a block a maximum of *distance* left or right. Runs over all blocks *rounds* times.
+`heavy` | seed | rounds | - | moves every block somewhere else *rounds* times
+  
+### -2
+Blowup image by 2x
+### --quality
+JPEG Output Quality 0-100, 100=best, default=100
+### --no-logo
+do not include Logo in Image
+### -t "<text>"
+embed text to show when descrambling (max. 400 chars)
+### --silent
+do not pause on descramble for displaying text
+### -p
+scramble with password (ask for it)
+### --password=<password>
+scramble with <password> (caution: it's then in your console history...)
+### --stealth
+hide password use from generated image. You must run descrambling with -p or --password option then!
+### --overwrite
+Overwrite output file when it exists
+
+
+# Details
 
 ## Image quality
 Slight scramble will produce a near identical descrambler image.
@@ -35,6 +84,9 @@ You can circumvent that with the -2 option, blowing up the image by 2x. While de
 The main advantage of this scrambler in comparison to other image scrambles is that it can scramble only parts of an image.
 For that you provide the scrambler also a black and white image where you marked the regions you want to scramble in white.
 You can easily create such an image with Photoshop, GIMP or even Windows Paint. Just be carefull not to overwrite your original image with Paint ;-D
+
+## Seed based scrambling
+All of Scramb.py's Scrambling Algorithms use a Seed to generate pseudo random numbers. This is essential so that when descrambling, Scramb.py can create the substitution map that was used for scrambling.  
 
 ## Password protection
 You can set a password. Be aware that the password system and the used Random Number Generator are nowhere near security and not tested for that application.
