@@ -1,5 +1,5 @@
 # Scramb.py
-Scramb.py is a region based JPEG Image Scrambler
+Scramb.py is a region based JPEG Image Scrambler written in Python.
 
 ![](img/overview.png)
 
@@ -8,7 +8,7 @@ Scramb.py is a region based JPEG Image Scrambler
 - All you need to descramble the image is encoded in a data „snake“ around the image. The scrambled image is thus a bit wider as the original.
 - You can select different scramble modes.
   - When you slightly scramble a region, a thumbnail of the image can still be recognized.
-  - If you use ghe heavy scrambler, you cannot guess the content.
+  - If you use the heavy scrambler, you cannot guess the content.
 - You can set a password
 - You can include short text messages that will show up upon descramble
 - Easy to use: Windows Drag & Drop descramble
