@@ -25,6 +25,11 @@ Nevertheless the heavy scrambler will produce a grid like structure in bright (e
 
 You can circumvent that with the -2 option, blowing up the image by 2x. While descrambling, it will automatically be reduced to the original size.
 
+## Regional scrambling
+The main advantage of this scrambler in comparison to other image scrambles is that it can scramble only parts of an image.
+For that you provide the scrambler also a black and white image where you marked the regions you want to scramble in white.
+You can easily create such an image with Photoshop, GIMP or even Windows Paint. Just be carefull not to overwrite your original image with Paint ;-D
+
 ## Password protection
 You can set a password
 be aware that the password system and the used Random Number Generator are nowhere near security and not tested for that application.
