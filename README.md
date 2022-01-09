@@ -1,6 +1,7 @@
 # Scramb.py
 Scramb.py is a region based JPEG Image Scrambler
 
+
 ## Main features
 - Scramb.py can scramble images *regions*. So you can e.g. scramble only the face of a person.
 - All you need to descramble the image is encoded in a data „snake“ around the image. The scrambled image is thus a bit wider as the original.
@@ -13,6 +14,10 @@ Scramb.py is a region based JPEG Image Scrambler
 - Survives multiple re-encodings of an image down to JPEG quality around 30 something, when the image gets ugly and blocky still chances that they decode
 - Does not depend on any meta data within the JPEG file, as these are normally completly stripped by all major social media sites.
 
+![](img/Lenna_heavy_pw.jpg)
+
+*In this example, only Lenna's face was scrambled and the scrambled image is password protected. You can actually try the example images in this repo with scramb.py yourself!*
+
 
 ## Use cases
 - Offend the easily offended *less*: Upload pictures to sites like Twitter, Facebook, DeviantArt etc. (esp. Social Media) that normally trigger people to report these *despite* being okay and according to TOS of the site.
@@ -21,7 +26,7 @@ Scramb.py is a region based JPEG Image Scrambler
 ## Image quality:
 Slight scramble will produce a near identical descrambler image.
 Scramb.py scrambles 8x8 blocks to best encounter effects of jpeg artifacts.
-Nevertheless the heavy scrambler will produce a grid like structure in bright (esp. red/blue) regions of the descrambled image. This happens because of color subsampling in JPEG by the factor 2.
+Nevertheless the heavy scrambler will produce a grid like structure in bright (esp. red/blue) regions of the descrambled image. This happens because of color subsampling in JPEG by the factor 2 and in a scrambled image, blocks of brigthness and darkness now lie next to each other when in the original image they do not.
 
 You can circumvent that with the -2 option, blowing up the image by 2x. While descrambling, it will automatically be reduced to the original size.
 
