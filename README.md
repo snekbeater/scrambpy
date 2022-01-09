@@ -40,33 +40,41 @@ You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 
 ## Options
 ### -x <number> -y <number> -z <number>
-Specific parameter for the chosen scrambler
+Specific parameter for the chosen scrambler, see table below.
 
 ### -s <scrambler>
 The scrambler to be used
 
 scrambler | x | y | z | What it does
 --- | --- | --- | --- | ---
-`matrix` | seed | turn percentage (10=10%, 100=100%, 170=170% | - | turns a group of 2x2 blocks clockwise. Does not work on lonely pixels.
+`matrix` | seed | turn percentage (10=10%, 100=100%, 170=170%) | - | turns a group of 2x2 blocks clockwise. Does not work on lonely pixels.
 `medium` | seed | rounds | distance | moves a block a maximum of *distance* left or right. Runs over all blocks *rounds* times.
 `heavy` | seed | rounds | - | moves every block somewhere else *rounds* times
-  
+
 ### -2
 Blowup image by 2x
-### --quality
+### --quality=
+`--quality=10..100`
+
 JPEG Output Quality 0-100, 100=best, default=100
 ### --no-logo
 do not include Logo in Image
-### -t "<text>"
-embed text to show when descrambling (max. 400 chars)
+### -t
+`-t "<Text>"`
+
+Embed text to show when descrambling (max. 400 chars)
 ### --silent
-do not pause on descramble for displaying text
+Do not pause on descramble for displaying text
 ### -p
-scramble with password (ask for it)
-### --password=<password>
-scramble with <password> (caution: it's then in your console history...)
+Scramble with password (ask for it)
+### --password=
+`--password=<password>`
+
+Scramble with `<password>`
+
+Caution: it's then in your console history! Use `-p` instead!
 ### --stealth
-hide password use from generated image. You must run descrambling with -p or --password option then!
+Hide password use from generated image. You must run descrambling with `-p` or `--password` option then! Descrambling without these options will otherwise not promt for a password and the descrambled image is still scrambled (in a different way).
 ### --overwrite
 Overwrite output file when it exists
 
