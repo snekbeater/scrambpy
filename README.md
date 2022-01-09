@@ -86,7 +86,7 @@ Slight scramble will produce a near identical descrambler image.
 Scramb.py scrambles 8x8 blocks to best encounter effects of jpeg artifacts.
 Nevertheless the heavy scrambler will produce a grid like structure in bright (esp. red/blue) regions of the descrambled image. This happens because of color subsampling in JPEG by the factor 2 and in a scrambled image, blocks of brigthness and darkness now lie next to each other when in the original image they do not.
 
-You can circumvent that with the -2 option, blowing up the image by 2x. While descrambling, it will automatically be reduced to the original size.
+You can circumvent that with the `-2` option, blowing up the image by 2x. While descrambling, it will automatically be reduced to the original size.
 
 ## Regional scrambling
 The main advantage of this scrambler in comparison to other image scrambles is that it can scramble only parts of an image.
@@ -134,6 +134,8 @@ Code is easy to follow so feel free to check it for backdoors. You can even dele
 
 # Notes
 Sample Images from
+  
 http://r0k.us/graphics/kodak/index.html
+  
 https://en.wikipedia.org/wiki/Lenna
 
