@@ -1,7 +1,7 @@
 # Scramb.py
 Scramb.py is a region based JPEG Image Scrambler written in Python.
 
-![](img/overview.png)
+![](img/overview2.png)
 
 ## Main features
 - Scramb.py can scramble images *regions*. So you can e.g. scramble only the face of a person.
