@@ -1,5 +1,5 @@
 # Scramb.py
-Scramb.py is a region based JPEG Image Scrambler written in Python.
+Scramb.py is a region based JPEG Image Scrambler and Descrambler written in Python.
 
 ![](img/overview2.png)
 
