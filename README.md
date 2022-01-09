@@ -45,5 +45,23 @@ Windows use is easy for descramble
 ## Backdoor Free Code
 Code is easy to follow so feel free to check it for backdoors. You can even delete the encoded logo
 
+## Full resolution examples
 
+### Image region
+#### Original
+![](img/kodim04.png)
+#### Scramble mask
+![](img/kodim04_mask.png)
+#### Output, slightly scrambled
+![](img/kodim04_scrambled.jpg)
+
+### Full image
+#### Original
+![](img/kodim23.png)
+#### Output, heavy scramble
+![](img/kodim23_scrambled.jpg)
+
+
+# Notes
+Sample Images from http://r0k.us/graphics/kodak/index.html
 
