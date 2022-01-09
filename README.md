@@ -17,13 +17,14 @@ Scramb.py is a region based JPEG Image Scrambler
 ![](img/Lenna_heavy_pw.jpg)
 
 *In this example, only Lenna's face was scrambled and the scrambled image is password protected. You can actually try the example images in this repo with scramb.py yourself!*
+*Also, people get offended when Lenna is used (although, now we also have Fabio, which I use as a Black/White Test Image!... so, Lenna is scrambled here in this repo :-)*
 
 
 ## Use cases
 - Offend the easily offended *less*: Upload pictures to sites like Twitter, Facebook, DeviantArt etc. (esp. Social Media) that normally trigger people to report these *despite* being okay and according to TOS of the site.
 - Upload a pic as a teaser but give away the password only to a small section of people
 
-## Image quality:
+## Image quality
 Slight scramble will produce a near identical descrambler image.
 Scramb.py scrambles 8x8 blocks to best encounter effects of jpeg artifacts.
 Nevertheless the heavy scrambler will produce a grid like structure in bright (esp. red/blue) regions of the descrambled image. This happens because of color subsampling in JPEG by the factor 2 and in a scrambled image, blocks of brigthness and darkness now lie next to each other when in the original image they do not.
@@ -36,8 +37,7 @@ For that you provide the scrambler also a black and white image where you marked
 You can easily create such an image with Photoshop, GIMP or even Windows Paint. Just be carefull not to overwrite your original image with Paint ;-D
 
 ## Password protection
-You can set a password
-be aware that the password system and the used Random Number Generator are nowhere near security and not tested for that application.
+You can set a password. Be aware that the password system and the used Random Number Generator are nowhere near security and not tested for that application.
 Consider the password system to be like a cheap padlock.
 
 ## Text
@@ -73,5 +73,7 @@ Code is easy to follow so feel free to check it for backdoors. You can even dele
 
 
 # Notes
-Sample Images from http://r0k.us/graphics/kodak/index.html
+Sample Images from
+http://r0k.us/graphics/kodak/index.html
+https://en.wikipedia.org/wiki/Lenna
 
