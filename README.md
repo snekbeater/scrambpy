@@ -1,9 +1,15 @@
 # Scramb.py
-Scramb.py is a region based JPEG Image Scrambler and Descrambler written in Python.
+**Scramb.py** is a region based JPEG Image Scrambler and Descrambler written in Python.
 
 ![](img/overview2.png)
 
-## Main features
+- [Installation Windows & Linux](#installation)
+- [Usage](#usage)
+- [Options](#options)
+- [Details](#details)
+- [Examples](#examples)
+
+## Main Features
 - Scramb.py can scramble images *regions*. So you can e.g. scramble only the face of a person.
 - All you need to descramble the image is encoded in a data „snake“ around the image. The scrambled image is thus a bit wider as the original.
 - You can select different scramble modes.
@@ -24,17 +30,67 @@ Scramb.py is a region based JPEG Image Scrambler and Descrambler written in Pyth
 - Offend the easily offended *less*: Upload pictures to sites like Twitter, Facebook, DeviantArt etc. (esp. Social Media) that normally trigger people to report these *despite* being okay and according to TOS of the site.
 - Upload a pic as a teaser but give away the password only to a small section of people
 
+# Installation
+
+## Windows
+scramb.py is written and runs in Python, so you have to install the Python interpreter and one Python module (Pillow).
+1. Install Python 3 for Windows [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/)
+2. Download scramb.py Script, it should look like this:
+
+![](img/scrambpy.png)
+
+
+3. Install Pillow module, you can do this manually or let the scramb.py Script do this:
+   - **via Script:** Run scramb.py with a double click and if prompted, press `y` to install Pillow
+   - **manually** locate `pip.exe` in your Python installation folder and run `pip.exe install Pillow` in a commandline
+
+## Linux
+
+1. Install Python 3 if not already present (Ubuntu, Raspberry OS etc should have Python 3 installed already).
+2. Download scramb.py Script
+3. If not present, install Pillow with `pip install Pillow`
+4. Make the script executable `chmod +x scramb.py`
+
+
 # Usage
 
+## Descramble
+
+### Drag & Drop (Windows)
+To descramble an image, download it **in full resolution** and drag & drop it onto the script.
+![](img/dragdrop.png)
+
+If the image is password protected, the console window will stay open and ask you for a password:
+![](img/password.png)
+
+### Commandline (Windows)
+To descramble an image, download it **in full resolution** and use its path as one of the arguments
+`python.exe scramb.py <inputfile.jpg>`
+
+`python.exe scramb.py -i <inputfile.jpg> -o <outputfile.jpg>`
+
+### Commandline (Linux)
+To descramble an image, download it **in full resolution** and use its path as one of the arguments
+`./scramb.py <inputfile.jpg>`
+
+`./scramb.py -i <inputfile.jpg> -o <outputfile.jpg>`
+
+
+
 ## Scramble
-`scramb.py -i <inputfile> [-m <mask.png/.jpg>] -o <outputfile.jpg>  [OPTIONS]`
+
+### Scramble (Windows)
+At this moment, drag & drop scrambling is not possible. You have to use the commandline or write a short batch file.
+
+`python.exe scramb.py -i <inputfile> [-m <mask.png/.jpg>] -o <outputfile.jpg>  [OPTIONS]`
 
 You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 
-## Descramble
-`scramb.py <inputfile.jpg>` also usable for drag & drop
+### Scramble (Linux)
 
-`scramb.py -i <inputfile.jpg> -o <outputfile.jpg>`
+`./scramb.py -i <inputfile> [-m <mask.png/.jpg>] -o <outputfile.jpg>  [OPTIONS]`
+
+You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 
 ## Calculate Residue
 `scramb.py -r <imagefile1.jpg> <imagefile2.jpg>`
@@ -118,7 +174,7 @@ Windows use is easy for descramble
 ## Backdoor Free Code
 Code is easy to follow so feel free to check it for backdoors. You can even delete the encoded logo.
 
-## Full resolution examples
+# Examples
 
 ### Image region
 #### Original
