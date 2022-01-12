@@ -3,7 +3,7 @@
 #
 # Scramb.py is a region based JPEG Image Scrambler 
 #
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 #
 # For updates see git repo at:
 # https://github.com/snekbeater/scrambpy
@@ -12,9 +12,11 @@ VERSION = "0.1.0"
 # Contact: snekbeater at protonmail.com
 #
 #
-# This version of Scramb.py can encode and decode images with
+# This version of Scramb.py uses and thus can encode and decode images with
 # the following encoder version:
-HEADER_VERSION_ENCODER = 1
+HEADER_VERSION_ENCODER = 2
+# It can decode images down to the following encoder version:
+HEADER_VERSION_ENCODER_MIN = 1
 #
 #
 # Copyright (C) 2022 snekbeater
@@ -66,7 +68,8 @@ import random	# mix it
 import math	# ceil round etc
 from io import BytesIO # serialize png and other files
 import getopt	# commandline arg handler
-import pickle # serialize dictionaries
+import pickle # serialize dictionaries V01
+import json   # serialize dictionaries V02
 import hashlib # for password hash generation
 from getpass import getpass # for getting the password from commandline
 
@@ -1012,8 +1015,11 @@ if isScrambleModeSelected:
 
 	# serialize parameters
 	print("Used scrambling configuration: ", scramblerParametersForDataField)
-	serial_params = pickle.dumps( scramblerParametersForDataField )
-	chunkbytes = createChunk(list(serial_params),4)
+	serial_params = json.dumps(scramblerParametersForDataField, separators=(',', ':'))
+	print("JSON:",serial_params)
+	myrawdata = list(bytearray(serial_params,"utf-8"))
+	print("JSON bytes:",len(myrawdata))
+	chunkbytes = createChunk(myrawdata,4)
 	mybytes = mybytes + chunkbytes
 
 
@@ -1049,8 +1055,9 @@ else:
 	dataHeader = decodeChunkType(myRestoredBytes, 0)
 	versionStored = dataHeader - HEADER_VERSION_MAGIC_NUMBER
 	print("Encoder Version of scramb.py: ", HEADER_VERSION_ENCODER)
+	print("Decode possible down to     : ", HEADER_VERSION_ENCODER_MIN)
 	print("Encoder Version of Image    : ", versionStored)
-	if (versionStored != HEADER_VERSION_ENCODER):
+	if (versionStored > HEADER_VERSION_ENCODER) or (versionStored < HEADER_VERSION_ENCODER_MIN):
 		print("Encoder Version missmatch or not a scrambled image or image without data")
 		print("Giving up")
 		sys.exit(3)
@@ -1106,7 +1113,7 @@ else:
 			chunkData = getChunkData(myRestoredBytes, seek)
 
 			seek = seek + chunkLength + 3
-		if chunkType == 1:	# Output Ascii Text
+		elif chunkType == 1:	# Output Ascii Text
 			print("Chunk: Text")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
@@ -1118,7 +1125,7 @@ else:
 				input("Press Enter to continue with descrambling...")
 			seek = seek + chunkLength + 3
 
-		if chunkType == 2:	# png file
+		elif chunkType == 2:	# png file
 			print("Chunk: PNG File")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
@@ -1132,7 +1139,7 @@ else:
 			#pngimage.show()
 			seek = seek + chunkLength + 3
 
-		if chunkType == 3:	# image info
+		elif chunkType == 3:	# image info
 			print("Chunk: Image Info")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
@@ -1142,19 +1149,21 @@ else:
 			print("Image Height: ", finalImageDimensions[1])
 			seek = seek + chunkLength + 3
 
-		if chunkType == 4:	# scrambler parameters
+		elif chunkType == 4:	# scrambler parameters
 			print("Chunk: Scrambler Parameters")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
-			
-			received_params = pickle.loads( bytes(chunkData) )
+			if (versionStored == 1):	
+				received_params = pickle.loads( bytes(chunkData) )
+			else:
+				received_params = json.loads(bytearray(chunkData).decode("utf-8"))
 			print("Parameters: ", received_params)
 			seek = seek + chunkLength + 3
-
-
-
-
-
+		else: # unknown
+			print("Chunk: UNKNOWN TYPE", chunkType)
+			print("Length: ", chunkLength)
+			seek = seek + chunkLength + 3
+		
 	
 	scrambler = received_params[SCRAMBLERPARAMETERSDATAFIELD_SCRAMBLER]
 
