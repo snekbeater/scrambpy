@@ -106,15 +106,17 @@ You can add a short text to be shown while descramble
 This text is *not* password protected
 
 ## Scramb.py - Logo
-A small logo is added to help people find this descrambler „scrambled by Scramb.py“
+A small logo is added to help people find this descrambler „Scrambled with Scramb.py“.
+
 You can of course switch that off if you wish
 
 ## Drag & Drop
 Windows use is easy for descramble
+
 (Scramble needs commandline;-)
 
 ## Backdoor Free Code
-Code is easy to follow so feel free to check it for backdoors. You can even delete the encoded logo
+Code is easy to follow so feel free to check it for backdoors. You can even delete the encoded logo.
 
 ## Full resolution examples
 
@@ -132,7 +134,9 @@ Code is easy to follow so feel free to check it for backdoors. You can even dele
 #### Output, heavy scramble
 ![](img/kodim23_scrambled.jpg)
 
-
+# Changelog
+View [changelog](CHANGELOG.md)
+  
 # Notes
 Sample Images from
   
