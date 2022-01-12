@@ -37,8 +37,7 @@ scramb.py is written and runs in Python, so you have to install the Python inter
 1. Install Python 3 for Windows [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/)
 2. Download scramb.py Script, it should look like this:
 
-![](img/scrambpy.png)
-
+![](img/scrambpy.PNG)
 
 3. Install Pillow module, you can do this manually or let the scramb.py Script do this:
    - **via Script:** Run scramb.py with a double click and if prompted, press `y` to install Pillow
@@ -58,10 +57,12 @@ scramb.py is written and runs in Python, so you have to install the Python inter
 
 ### Drag & Drop (Windows)
 To descramble an image, download it **in full resolution** and drag & drop it onto the script.
-![](img/dragdrop.png)
+
+![](img/dragdrop.PNG)
 
 If the image is password protected, the console window will stay open and ask you for a password:
-![](img/password.png)
+
+![](img/password.PNG)
 
 ### Commandline (Windows)
 To descramble an image, download it **in full resolution** and use its path as one of the arguments
