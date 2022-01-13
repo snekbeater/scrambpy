@@ -3,7 +3,7 @@
 #
 # Scramb.py is a region based JPEG Image Scrambler 
 #
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 #
 # For updates see git repo at:
 # https://github.com/snekbeater/scrambpy
@@ -92,6 +92,7 @@ SCRAMBLERPARAMETERSDATAFIELD_ROUNDS = 			'r'
 SCRAMBLERPARAMETERSDATAFIELD_DISTANCE = 		'd'
 SCRAMBLERPARAMETERSDATAFIELD_PERCENTAGEOFTURNS = 	't'
 SCRAMBLERPARAMETERSDATAFIELD_PASSWORDUSED =		'p'
+SCRAMBLERPARAMETERSDATAFIELD_PATCHIMAGE =		'i'
 #
 STANDARD_JPEG_QUALITY = 100	# standard save quality
 
@@ -570,7 +571,48 @@ def createJPEGSampleInMemory(image, quality=80):
 	image.save(memoryFile, format='JPEG', quality=quality)
 	
 	return Image.open(memoryFile)
+
+
+
+#def copyBlock(sourceImage, sx, sy, targetImage, tx, ty):
+##	block1 = sourceImage.crop((sx,sy,sx+8,sy+8))
+#	targetImage.paste(block1,(tx,ty),mask=None)
 	
+
+def transferBlocks(sourceImage, sourceMaskImage, targetImage, targetMaskImage):
+	#print("Blocks Source: ",countBlocksOfMask(sourceMaskImage))
+	#print("Blocks Target: ",countBlocksOfMask(targetMaskImage))
+
+	if (countBlocksOfMask(sourceMaskImage) < countBlocksOfMask(targetMaskImage)):
+		blocksToCopy = countBlocksOfMask(sourceMaskImage)
+	else:
+		blocksToCopy = countBlocksOfMask(targetMaskImage)
+	sx = 0
+	sy = 0
+	tx = 0
+	ty = 0
+	copiedBlocks = 0
+
+	while (copiedBlocks < blocksToCopy):
+	
+		while True:
+			sx = sx + 1
+			if  sx == sourceMaskImage.width:
+				sy = sy + 1
+				sx = 0
+			if (sourceMaskImage.getpixel((sx,sy)) > 0):
+				break
+				
+		while True:
+			tx = tx + 1
+			if  tx == targetMaskImage.width:
+				ty = ty + 1
+				tx = 0
+			if (targetMaskImage.getpixel((tx,ty)) > 0):
+				break
+				
+		copyBlock(sourceImage,targetImage,sx*8,sy*8,tx*8,ty*8)
+		copiedBlocks = copiedBlocks + 1
 
 
 
@@ -653,6 +695,19 @@ def calculatePasswordSeed(password):
 	return passwordSeed
 
 
+def countBlocksOfMask(maskimage):
+	numberOfBlocks = 0
+	for y in range(maskimage.height):
+		for x in range(maskimage.width):
+			luma = maskimage.getpixel((x,y))			
+			if luma > 0:
+				numberOfBlocks = numberOfBlocks + 1
+	return numberOfBlocks
+
+
+
+
+
 
 
 def printHelp():
@@ -687,7 +742,12 @@ def printHelp():
 	print("    --stealth     hide password use from generated image")
 	print("                  You must run descrambling with -p or --password option then!")
 	print("    --overwrite   Overwrite output file when it exists")
-	print("")
+	print("    -d <disguiseimage.jpg>")
+	print("                  Enables patch mode with a disguise image for scramble and descramble")
+	print("                  When scrambling: This will output a patch image as -o and this -d image")
+	print("                           is used as a thumbnail (the disguise image)")
+	print("                  When descrambling: This is the disguise image that is patched with")
+	print("                           the patch image provided by -i") 
 
 
 #-------------------------------main-------------------------------
@@ -718,6 +778,9 @@ isSilent = False
 outputQuality = STANDARD_JPEG_QUALITY
 isScrambleModeSelected = False
 overwrite = False
+disguisefilename = ""
+isDisguiseEnabled = False
+
 
 if len(sys.argv) == 1:
 	printHelp()
@@ -725,7 +788,7 @@ if len(sys.argv) == 1:
 
 try:
 	# TODO all ops work & present in help?
-	opts, args = getopt.getopt(sys.argv[1:],"?h2i:s:m:o:r:x:y:z:t:p",["no-logo","password=","stealth","silent","quality=","overwrite"])
+	opts, args = getopt.getopt(sys.argv[1:],"?h2i:s:m:o:d:r:x:y:z:t:p",["no-logo","password=","stealth","silent","quality=","overwrite"])
 except getopt.GetoptError:
 	printHelp()
 	sys.exit(2)
@@ -761,6 +824,9 @@ for opt, arg in opts:
 		inputfilename = arg
 	elif opt in ("-o"):
 		outputfilename = arg
+	elif opt in ("-d"):
+		disguisefilename = arg
+		isDisguiseEnabled = True
 	elif opt in ("-p"):
 		isPasswordSet = True
 	elif opt in ("--password"):
@@ -796,8 +862,10 @@ if (not isScrambleModeSelected) and (len(args) == 1):
 
 
 
-print("Input : ",inputfilename)
-print("Output: ",outputfilename)
+print("Input   : ",inputfilename)
+if isDisguiseEnabled:
+	print("Disguise: ", disguisefilename)
+print("Output  : ",outputfilename)
 
 if overwrite:
 	print("Overwrite enabled")
@@ -837,7 +905,9 @@ if isScrambleModeSelected:
 
 	mybytes = []
 
-	mybytes = mybytes + createChunk(createImageInfo(im),3)
+	# TODO: only do this at one place 
+	if not isDisguiseEnabled:
+		mybytes = mybytes + createChunk(createImageInfo(im),3)
 
 
 	maskDimensions = (int(math.ceil(im.width / 8.0)), int(math.ceil(im.height / 8.0)))
@@ -929,8 +999,56 @@ if isScrambleModeSelected:
 			for i in range(overscanLines):
 				im.paste(bottomStrip,(0,originalIm.height + i),mask=None)
 
+	if isDisguiseEnabled:
+		print("Disguise Enabled")
+		numberOfBlocksOfMask = countBlocksOfMask(pngim)
+		print("Extracting",numberOfBlocksOfMask," Blocks of input image")
+
+		imDisguise = Image.open(disguisefilename)
+		print("Disguise Image size ", imDisguise.size)
+		if not imDisguise.mode == "RGB":
+			print("Image mode is",imDisguise.mode,", converting it to RGB")
+			imDisguise = imDisguise.convert("RGB")
+		THUMB_SIDELENGTH = 200 # must be %8=0 and /2%8=0 for blowup !!
 
 
+		# portrait or landscape?
+		if imDisguise.width < imDisguise.height:
+			# portrait
+			thumb = imDisguise.resize((int(round((imDisguise.width*THUMB_SIDELENGTH)/imDisguise.height),THUMB_SIDELENGTH)), resample=Image.BICUBIC)
+		else:
+			# landscape
+			thumb = imDisguise.resize((THUMB_SIDELENGTH,int(round((imDisguise.height*THUMB_SIDELENGTH)/imDisguise.width))), resample=Image.BICUBIC)
+
+		if blowup:
+			THUMB_SIDELENGTH = int(THUMB_SIDELENGTH / 2)
+
+		#print("Thumb space: ",(THUMB_SIDELENGTH + 8) / 8, (THUMB_SIDELENGTH + 8) / 8)
+		neededBlocks = math.ceil((THUMB_SIDELENGTH + 8) / 8) * ((THUMB_SIDELENGTH + 8) / 8) + numberOfBlocksOfMask
+		print(neededBlocks)
+		side = math.ceil(math.sqrt(neededBlocks))
+		print(side)
+		print("Patch image size:", side*8,"x",side*8)
+		patchImage = Image.new('RGB', (side*8, side*8), (0,0,0))	
+
+		#patchImage.paste(thumb,(0, 0),mask=None)
+		#patchImage.show()
+		patchMaskImage = Image.new('1', (side, side),(1))	
+		
+		patchMaskDraw = ImageDraw.Draw(patchMaskImage)
+		# TODO is -1 correct? there was a 16px safe zone and the reason was unclear
+		patchMaskDraw.rectangle((0, 0,(THUMB_SIDELENGTH + 8) / 8 - 1, (THUMB_SIDELENGTH + 8) / 8 - 1), fill=(0))
+		#patchMaskImage.show()
+		
+		memoryFile = BytesIO()
+		patchMaskImage.save(memoryFile, format='PNG', optimize=True, icc_profile=None)
+
+		chunkbytes = createChunk(list(memoryFile.getvalue()),2)
+		print("Mask size:", memoryFile.getbuffer().nbytes,"bytes")
+		mybytes = mybytes + chunkbytes
+
+		
+		
 
 
 	if (scrambler == "matrix"):
@@ -1007,11 +1125,28 @@ if isScrambleModeSelected:
 		print("Giving up")
 		sys.exit(3)
 	
+	
+	
+	if isDisguiseEnabled:
+		transferBlocks(im, pngim, patchImage, patchMaskImage)
+		im = patchImage
+		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_PATCHIMAGE] = True
+
+
+	# TODO only do this in one place
+	if isDisguiseEnabled:
+		mybytes = mybytes + createChunk(createImageInfo(im),3)
+
+
 
 	# blowup image
 	if blowup:
 		im = im.resize((int(im.width * 2), int(im.height * 2)), resample=Image.NEAREST)
 		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_BLOWUP] = True
+
+	if isDisguiseEnabled:
+		im.paste(thumb,(0, 0),mask=None)
+
 
 	# serialize parameters
 	print("Used scrambling configuration: ", scramblerParametersForDataField)
@@ -1095,16 +1230,13 @@ else:
 	print("Decoded ",len(myRestoredBytes)," bytes")
 	print("Image starts at x=",offsetX," y=", offsetY)
 
-	pngimageread = None
+	pngimageread = []
 
 	seek = 3
 	
 	finalImageDimensions = (0,0)
 
 	while seek < len(myRestoredBytes) - 1: #-1 because of checksum at the end
-
-		# TODO crashes in infinite loop when next seeked chunk has unknown header
-
 		chunkType = decodeChunkType(myRestoredBytes, seek)
 		chunkLength = decodeChunkLength(myRestoredBytes, seek)
 		if chunkType == 0:	# Raw Data
@@ -1134,8 +1266,8 @@ else:
 		
 			pngfile = BytesIO(bytearray(chunkData))
 		
-			pngimageread = Image.open(pngfile)
-	
+			pngimageread.append(Image.open(pngfile))
+			print("Images embedded so far:",len(pngimageread))
 			#pngimage.show()
 			seek = seek + chunkLength + 3
 
@@ -1168,6 +1300,13 @@ else:
 	scrambler = received_params[SCRAMBLERPARAMETERSDATAFIELD_SCRAMBLER]
 
 
+	if (SCRAMBLERPARAMETERSDATAFIELD_PATCHIMAGE in received_params) and not isDisguiseEnabled:
+		print("This is a patch image. It is used on another image, which is shown as")
+		print("a thumbnail in this image. Please provide both images as input.")
+		print("See help -? for needed commands.")
+		print("Giving up")
+		sys.exit(3)
+
 	if SCRAMBLERPARAMETERSDATAFIELD_BLOWUP in received_params:
 		blowup = received_params[SCRAMBLERPARAMETERSDATAFIELD_BLOWUP]
 	else:
@@ -1198,6 +1337,18 @@ else:
 		savedim = savedim.crop((offsetX,offsetY,offsetX+intermediateImageDimensions[0],offsetY+intermediateImageDimensions[1]))
 
 
+	if isDisguiseEnabled:
+		print("Disguise Enabled")
+		imDisguise = Image.open(disguisefilename)
+		print("Disguise Image size ", imDisguise.size)
+		if not imDisguise.mode == "RGB":
+			print("Image mode is",imDisguise.mode,", converting it to RGB")
+			imDisguise = imDisguise.convert("RGB")
+		#imDisguise.show()
+		transferBlocks(savedim, pngimageread[1], imDisguise, pngimageread[0])
+		savedim = imDisguise
+
+
 
 
 	if (scrambler == "matrix"):
@@ -1208,7 +1359,7 @@ else:
 		percentOfTurns = received_params[SCRAMBLERPARAMETERSDATAFIELD_PERCENTAGEOFTURNS]
 
 
-		substitutionMatrix = createSubstitutionMatrixFromMask(pngimageread)
+		substitutionMatrix = createSubstitutionMatrixFromMask(pngimageread[0])
 	
 
 		print("mixing..")
@@ -1228,7 +1379,7 @@ else:
 		dist = received_params[SCRAMBLERPARAMETERSDATAFIELD_DISTANCE]
 		rou = received_params[SCRAMBLERPARAMETERSDATAFIELD_ROUNDS]
 
-		substitutionMap = createSubstitutionMapFromMask(pngimageread)
+		substitutionMap = createSubstitutionMapFromMask(pngimageread[0])
 		if (len(substitutionMap) > 100000):
 			print("SubMap Size might be too big, will probably run a long time")
 		substitutionMapSource = substitutionMap.copy() 
