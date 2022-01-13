@@ -66,9 +66,11 @@ To descramble an image, download it **in full resolution** and drag & drop it on
 
 ![](img/dragdrop.PNG)
 
-If the image is password protected, the console window will stay open and ask you for a password:
+- If the image is password protected, the console window will stay open and ask you for a password:
 
 ![](img/password.PNG)
+
+- At this point you cannot descramble patch-mode images with drag & drop (the one where you input 2 images). You then have to use the commandline.
 
 ### Descramble (Windows)
 To descramble an image, download it **in full resolution** and use its path as one of the arguments
@@ -195,17 +197,21 @@ As a result, we want to distribute the edited version (without the lighthouse) *
 
 ### Original image with -i
 With parts you want to disguise.
+
 ![](img/kodim21.png)
 ### Disguise image with -d
 An image where you edited something out or, if e.g. rendered, you changed something.
+
 ![](img/kodim21_disguise.jpg)
 
 (No, scramb.py cannot do this for you ;-) it's not an artificial intelligence multitool ;-) you have to use Gimp or Photoshop etc )
 ### Mask with -m
 Showing what will be switched / what is hidden.
+  
 ![](img/kodim21_disguise_mask.png)
 ### Resulting patch-image
 With this patch-image and the disguise image (the one *without* the lighthouse), scramb.py can recreate the one *with* the lighthouse.
+  
 ![](img/kodim21_patch.jpg)
 
 ## Seed based scrambling
