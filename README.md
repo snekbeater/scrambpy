@@ -19,16 +19,22 @@
 - You can include short text messages that will show up upon descramble
 - Easy to use: Windows Drag & Drop descramble
 - Survives multiple re-encodings of an image down to JPEG quality around 30 something, when the image gets ugly and blocky still chances that they decode
-- Does not depend on any meta data within the JPEG file, as these are normally completly stripped by all major social media sites.
+- You can create patch images to separate transported images from their recreation metadata
+- Does not depend on any binary meta data within the JPEG file (EXIF, XMP, IPTC), as these are normally completly stripped by all major social media sites.
 
 ![](img/Lenna_heavy_pw.jpg)
 
 *In this example, only Lenna's face was scrambled and the scrambled image is password protected. You can actually try the example images in this repo with scramb.py yourself!*
 *Also, people get offended when Lenna is used (although, now we also have Fabio, which I use as a Black/White Test Image!... so, Lenna is scrambled here in this repo :-)*
 
+![](img/kodim21_patch.jpg)
+
+*This is a patch image. Scramb.py can create these to separate transported images from their recreation metadata. The patch image is then used to "patch in" the scrambled image blocks next to the thumbnail you see here.*
+
 ## Use cases
 - Offend the easily offended *less*: Upload pictures to sites like Twitter, Facebook, DeviantArt etc. (esp. Social Media) that normally trigger people to report these *despite* being okay and according to TOS of the site.
 - Upload a pic as a teaser but give away the password only to a small section of people
+- Have a gallery with images showing no sign of a second meaning and distribute the patch images separatly.
 
 # Installation
 
@@ -55,7 +61,7 @@ scramb.py is written and runs in Python, so you have to install the Python inter
 
 ## Descramble
 
-### Drag & Drop (Windows)
+### Drag & Drop Descramble (Windows)
 To descramble an image, download it **in full resolution** and drag & drop it onto the script.
 
 ![](img/dragdrop.PNG)
@@ -64,18 +70,26 @@ If the image is password protected, the console window will stay open and ask yo
 
 ![](img/password.PNG)
 
-### Commandline (Windows)
+### Descramble (Windows)
 To descramble an image, download it **in full resolution** and use its path as one of the arguments
 `python.exe scramb.py <inputfile.jpg>`
 
 `python.exe scramb.py -i <inputfile.jpg> -o <outputfile.jpg>`
 
-### Commandline (Linux)
+### Descramble (Linux)
 To descramble an image, download it **in full resolution** and use its path as one of the arguments
 `./scramb.py <inputfile.jpg>`
 
 `./scramb.py -i <inputfile.jpg> -o <outputfile.jpg>`
 
+### Patch Mode Descramble (Windows)
+
+`python.exe scramb.py -i <patchfile> -d <disguisefile> -o <outputfile.jpg> [OPTIONS]`
+
+
+### Patch Mode Descramble (Linux)
+
+`./scramb.py -i <patchfile> -d <disguisefile> -o <outputfile.jpg> [OPTIONS]`
 
 
 ## Scramble
@@ -93,6 +107,17 @@ You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 
 You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 
+
+### Patch Mode Scramble (Windows)
+
+`python.exe scramb.py -i <inputfile> -d <disguisefile> -m <maskfile> -o <patchfile.jpg> [OPTIONS]`
+
+
+### Patch Mode Scramble (Linux)
+
+`./scramb.py -i <inputfile> -d <disguisefile> -m <maskfile> -o <patchfile.jpg> [OPTIONS]`
+
+
 ## Calculate Residue
 `scramb.py -r <imagefile1.jpg> <imagefile2.jpg>`
 
@@ -108,6 +133,17 @@ scrambler | x | y | z | What it does
 `matrix` | seed | turn percentage (10=10%, 100=100%, 170=170%) | - | turns a group of 2x2 blocks clockwise. Does not work on lonely pixels.
 `medium` | seed | rounds | distance | moves a block a maximum of *distance* left or right. Runs over all blocks *rounds* times.
 `heavy` | seed | rounds | - | moves every block somewhere else *rounds* times
+
+  
+### -d  
+`-d <disguiseimage.jpg>
+
+With `-d` scramb.py will take 3 images as input:
+- -i original image
+- -d disguise image
+- -m mask
+
+scramb.py will then generate a patch-image.
 
 ### -2
 Blowup image by 2x
@@ -151,6 +187,27 @@ The main advantage of this scrambler in comparison to other image scrambles is t
 For that you provide the scrambler also a black and white image where you marked the regions you want to scramble in white.
 You can easily create such an image with Photoshop, GIMP or even Windows Paint. Just be carefull not to overwrite your original image with Paint ;-D
 
+## Patch-mode Scrambling
+Scramb.py can create a "patch" for an image to hide blocks and corresponding reconstruction data in a second image. This way, a "disguise" image can freely be distributed and later be patched with the patch-image.
+
+In the following example, the lighghouse was edited out with a photo editing software.
+As a result, we want to distribute the edited version (without the lighthouse) **and** the patch image, so that Scramb.py users can recreate the original image with the lighthouse.
+
+### Original image with -i
+With parts you want to disguise.
+![](img/kodim21.png)
+### Disguise image with -d
+An image where you edited something out or, if e.g. rendered, you changed something.
+![](img/kodim21_disguise.jpg)
+
+(No, scramb.py cannot do this for you ;-) it's not an artificial intelligence multitool ;-) you have to use Gimp or Photoshop etc )
+### Mask with -m
+Showing what will be switched / what is hidden.
+![](img/kodim21_disguise_mask.png)
+### Resulting patch-image
+With this patch-image and the disguise image (the one *without* the lighthouse), scramb.py can recreate the one *with* the lighthouse.
+![](img/kodim21_patch.jpg)
+
 ## Seed based scrambling
 All of Scramb.py's Scrambling Algorithms use a Seed to generate pseudo random numbers. This is essential so that when descrambling, Scramb.py can create the substitution map that was used for scrambling.  
 
@@ -190,6 +247,10 @@ Code is easy to follow so feel free to check it for backdoors. You can even dele
 ![](img/kodim23.png)
 #### Output, heavy scramble
 ![](img/kodim23_scrambled.jpg)
+
+### Patch-image
+![](img/kodim21_patch.jpg)
+
 
 # Changelog
 View [changelog](CHANGELOG.md)
