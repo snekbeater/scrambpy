@@ -3,7 +3,7 @@
 #
 # Scramb.py is a region based JPEG Image Scrambler 
 #
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 #
 # For updates see git repo at:
 # https://github.com/snekbeater/scrambpy
@@ -582,19 +582,16 @@ def createJPEGSampleInMemory(image, quality=80):
 def transferBlocks(sourceImage, sourceMaskImage, targetImage, targetMaskImage):
 	#print("Blocks Source: ",countBlocksOfMask(sourceMaskImage))
 	#print("Blocks Target: ",countBlocksOfMask(targetMaskImage))
-
 	if (countBlocksOfMask(sourceMaskImage) < countBlocksOfMask(targetMaskImage)):
 		blocksToCopy = countBlocksOfMask(sourceMaskImage)
 	else:
 		blocksToCopy = countBlocksOfMask(targetMaskImage)
-	sx = 0
+	sx = -1
 	sy = 0
-	tx = 0
+	tx = -1
 	ty = 0
 	copiedBlocks = 0
-
 	while (copiedBlocks < blocksToCopy):
-	
 		while True:
 			sx = sx + 1
 			if  sx == sourceMaskImage.width:
@@ -614,7 +611,7 @@ def transferBlocks(sourceImage, sourceMaskImage, targetImage, targetMaskImage):
 		copyBlock(sourceImage,targetImage,sx*8,sy*8,tx*8,ty*8)
 		copiedBlocks = copiedBlocks + 1
 
-
+	
 
 
 def scrambleBlocksOfImage(substitutionMapSource, substitutionMap, image, reverse=False):
@@ -1015,7 +1012,7 @@ if isScrambleModeSelected:
 		# portrait or landscape?
 		if imDisguise.width < imDisguise.height:
 			# portrait
-			thumb = imDisguise.resize((int(round((imDisguise.width*THUMB_SIDELENGTH)/imDisguise.height),THUMB_SIDELENGTH)), resample=Image.BICUBIC)
+			thumb = imDisguise.resize((int(round((imDisguise.width*THUMB_SIDELENGTH)/imDisguise.height)),THUMB_SIDELENGTH), resample=Image.BICUBIC)
 		else:
 			# landscape
 			thumb = imDisguise.resize((THUMB_SIDELENGTH,int(round((imDisguise.height*THUMB_SIDELENGTH)/imDisguise.width))), resample=Image.BICUBIC)
