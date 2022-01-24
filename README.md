@@ -16,7 +16,7 @@
 - Have a gallery with images showing no sign of a second meaning and distribute the patch images separatly.
 - Use as End-to-End-Encryption E2EE method for websites, messaging systems, chats, email, etc.
 - Image Hosts / Websites / Chat & Messaging services are left unaware of image content
-- Prevent and circumvent automated scanning / image hashing / photo hashing and machine learning / AI recognition of images. Scrambpy helps bringing back the effort of scanning and analysing images to a manual and thus expensive, labor intensive level. It thus helps to prevent mass survillance.
+- Prevent and circumvent automated scanning / image hashing / photo hashing and machine learning / AI recognition of images. Scrambpy helps bringing back the effort of scanning and analysing images to a manual and thus expensive, labor intensive level. It thus helps to prevent mass surveillance.
 
 ## Main Features
 - Scramb.py can scramble images *regions*. So you can e.g. scramble only the face of a person.
