@@ -16,7 +16,9 @@
 - Have a gallery with images showing no sign of a second meaning and distribute the patch images separatly.
 - Use as End-to-End-Encryption E2EE method for websites, messaging systems, chats, email, etc.
 - Image Hosts / Websites / Chat & Messaging services are left unaware of image content
-- Prevent and circumvent automated scanning / image hashing / photo hashing and machine learning / AI recognition of images. Scrambpy helps bringing back the effort of scanning and analysing images to a manual and thus expensive, labor intensive level. It thus helps to prevent mass surveillance.
+- Prevent and circumvent automated scanning / image hashing / photo hashing and machine learning / AI recognition of images. Scramb.py helps bringing back the effort of scanning and analysing images to a manual and thus expensive, labor intensive level. It thus helps to prevent mass surveillance. Scramb.py builds another layer of encryption if E2EE of messaging services should be crippled or broken by new laws.
+- In comparison to encryption on binary level (ZIP with Password, VeraCrypt Container, PGP), Scramb.py retains a JPEG / an image that can be uploaded to a lot of websites and messaging platforms. Binary encrypted content cannot be uploaded there.
+
 
 ## Main Features
 - Scramb.py can scramble images *regions*. So you can e.g. scramble only the face of a person.
@@ -33,6 +35,7 @@
 
 ### Passwordless mode with region scramble
 *Prevent reporting of images by casual users and automated scanning*
+
 ![](img/scrambpy_1_passwordless.png)
 
 1. A publisher wants to distribute an image E2EE and uses scrambpy to regional scramble this image.
@@ -51,6 +54,7 @@ He uploads the scrambled image to a website
 
 ### Password mode with full scramble
 *Prevent automated scanning and manual reporting of images with password*
+
 ![](img/scrambpy_2_password.png)
 
 1. The publisher scrambles the image with a password and informs the informed consumer about the password through a secure channel. They exchange the image E2EE through a normal website.
@@ -63,6 +67,7 @@ He uploads the scrambled image to a website
 
 ### Patch Mode
 *Prevent reporting of images by casual users (or also informers if password is used) and automated scanning and distribute fully disguised image*
+
 ![](img/scrambpy_3_patchmode2.png)
 
 1. The publisher creates a disguise image without certain content.
