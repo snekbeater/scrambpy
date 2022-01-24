@@ -63,7 +63,7 @@ He uploads the scrambled image to a website
 
 ### Patch Mode
 *Prevent reporting of images by casual users (or also informers if password is used) and automated scanning and distribute fully disguised image*
-![](img/scrambpy_3_patchmode.png)
+![](img/scrambpy_3_patchmode2.png)
 
 1. The publisher creates a disguise image without certain content.
 
