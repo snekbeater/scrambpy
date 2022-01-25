@@ -221,10 +221,12 @@ With this patch-image and the disguise image (the one *without* the lighthouse),
 ## Seed based scrambling
 All of Scramb.py's Scrambling Algorithms use a Seed to generate pseudo random numbers. This is essential so that when descrambling, Scramb.py can create the substitution map that was used for scrambling.  
 
-## Password protection
-You can set a password. Be aware that the password system and the used Random Number Generator are nowhere near security and not tested for that application.
-Consider the password system to be like a cheap padlock.
+## Password protection & Security
+You can set a password which is used to alter the seed of the random number generator. Thus you need the password to retreive the correct seed for descrambling. Providing the wrong password results in a still scrambled image.
 
+Be aware that the password system and the used Random Number Generator are nowhere near security and not tested for that application.
+Consider the password system to be like a cheap padlock.
+  
 ## Text
 You can add a short text to be shown while descramble
 This text is *not* password protected
