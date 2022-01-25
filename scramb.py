@@ -121,9 +121,7 @@ def readByte(image, x_position, y_position):
             for suby in range(4):
                 for subx in range(4):
                     r, g, b = image.getpixel((x_position + x * 4 + subx, y_position + y * 4 + suby))
-                    values.append(r)
-                    values.append(g)
-                    values.append(b)
+                    values.extend([r, g, b])
             valueSum = 0
             for value in values:
                 valueSum = valueSum + value
