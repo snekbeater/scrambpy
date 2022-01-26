@@ -347,7 +347,7 @@ def turnBlockInMatrix(matrix, x, y, clockwise=True):
 
 
 def mixSubstitutionMatrix(matrix, Seed=0, percent_Of_Turns=20):
-    print("calculating subseeds...")
+    print("calculating sub seeds...")
     print("seed ", Seed)
     subSeeds = random_uniform_sample(3, [0, 1000], seed=Seed)
 
@@ -475,8 +475,8 @@ def calculateChecksum(data):
     return check_sum
 
 
-def calculatePasswordSeed(password):
-    pw_bytes = password.encode('utf-8')
+def calculatePasswordSeed(Password):
+    pw_bytes = Password.encode('utf-8')
     hashed_password = hashlib.sha256(pw_bytes).hexdigest()
     password_Seed = int(hashed_password, 16)
     password_Seed = password_Seed % 100000000000000000
@@ -724,35 +724,35 @@ print("Output  : ", out_put_file_name)
 if overwrite:
     print("Overwrite enabled")
 
-elif (not overwrite) and os.path.exists(out_put_file_name):
+if (not overwrite) and os.path.exists(out_put_file_name):
     answer = input("Overwrite existing output file ?[y/n]")
-elif not answer == "y":
-    sys.exit()
+    if not answer == "y":
+        sys.exit()
 
 if isPasswordSet and (password == ""):
     password = getpass("Enter Password: ")
 
-elif isPasswordSet:
+if isPasswordSet:
     passwordSeed = calculatePasswordSeed(password)
 
 if isScrambleModeSelected:
     print("Mode: Scramble")
 
-    im = Image.open(input_file_name)
+    img = Image.open(input_file_name)
 
-    print("Image size ", im.size)
+    print("Image size ", img.size)
 
-    if not im.mode == "RGB":
-        print("Image mode is", im.mode, ", converting it to RGB")
-        im = im.convert("RGB")
+    if not img.mode == "RGB":
+        print("Image mode is", img.mode, ", converting it to RGB")
+        img = img.convert("RGB")
 
     my_bytes = []
 
     # TODO: only do this at one place
     if not isDisguiseEnabled:
-        my_bytes = my_bytes + createChunk(createImageInfo(im), 3)
+        my_bytes = my_bytes + createChunk(createImageInfo(img), 3)
 
-    maskDimensions = (int(math.ceil(im.width / 8.0)), int(math.ceil(im.height / 8.0)))
+    maskDimensions = (int(math.ceil(img.width / 8.0)), int(math.ceil(img.height / 8.0)))
 
     if os.path.exists(mask_file_name):
         png_img = Image.open(mask_file_name)
@@ -804,27 +804,27 @@ if isScrambleModeSelected:
     if isPasswordSet and not hidePasswordUse:
         scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_PASSWORDUSED] = True
 
-    originalWidth, originalHeight = im.size
+    originalWidth, originalHeight = img.size
     if (originalWidth % 8 > 0) or (originalHeight % 8 > 0):
         # correct % 8 > 0 images
-        originalIm = im.copy()
+        originalIm = img.copy()
         newWidth = int(math.ceil(originalWidth / 8) * 8)
         newHeight = int(math.ceil(originalHeight / 8) * 8)
 
-        im = im.crop((0, 0, newWidth, newHeight))
+        img = img.crop((0, 0, newWidth, newHeight))
 
         over_scan_Columns = 8 - originalWidth % 8
         if over_scan_Columns < 8:
             print("Filling right side over scan")
             rightStrip = originalIm.copy().crop((originalIm.width - 1, 0, originalIm.width, originalIm.height))
             for i in range(over_scan_Columns):
-                im.paste(rightStrip, (originalIm.width + i, 0), mask=None)
+                img.paste(rightStrip, (originalIm.width + i, 0), mask=None)
         over_scan_Lines = 8 - originalIm.height % 8
         if over_scan_Lines < 8:
             print("Filling bottom over scan")
             bottomStrip = originalIm.copy().crop((0, originalIm.height - 1, originalIm.width, originalIm.height))
             for i in range(over_scan_Lines):
-                im.paste(bottomStrip, (0, originalIm.height + i), mask=None)
+                img.paste(bottomStrip, (0, originalIm.height + i), mask=None)
 
     if isDisguiseEnabled:
         print("Disguise Enabled")
@@ -859,7 +859,6 @@ if isScrambleModeSelected:
         side = math.ceil(math.sqrt(neededBlocks))
         print(side)
         print("Patch image size:", side * 8, "x", side * 8)
-        patchImage = Image.new('RGB', (side * 8, side * 8), (0, 0, 0))
 
         # patchImage.paste(thumb,(0, 0),mask=None)
         # patchImage.show()
@@ -894,7 +893,7 @@ if isScrambleModeSelected:
         mixSubstitutionMatrix(substitutionMatrix, Seed=seed + passwordSeed, percent_Of_Turns=percentOfTurns)
 
         print("scrambling image..")
-        im = scrambleBlocksOfImageWithMatrix(substitutionMatrix, im, reverse=False)
+        img = scrambleBlocksOfImageWithMatrix(substitutionMatrix, img, reverse=False)
 
         scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_SEED] = seed
         scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_PERCENTAGEOFTURNS] = percentOfTurns
@@ -927,7 +926,7 @@ if isScrambleModeSelected:
             scrambler = "heavy"
             substitution_Map = mixSubstitutionMap_heavy(substitutionMap, Seed=seed + passwordSeed, rounds=rou)
 
-        scrambleBlocksOfImage(substitutionMapSource, substitutionMap, im, reverse=False)
+        scrambleBlocksOfImage(substitutionMapSource, substitutionMap, img, reverse=False)
 
         scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_SEED] = seed
         scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_ROUNDS] = rou
@@ -938,21 +937,22 @@ if isScrambleModeSelected:
         sys.exit(3)
 
     if isDisguiseEnabled:
-        transferBlocks(im, png_img, patchImage, patchMaskImage)
-        im = patchImage
+        patchImage = Image.new('RGB', (side * 8, side * 8), (0, 0, 0))
+        patchMaskImage = Image.new('1', (side, side), 1)
+        transferBlocks(img, png_img, patchImage, patchMaskImage)
         scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_PATCHIMAGE] = True
 
     # TODO only do this in one place
     if isDisguiseEnabled:
-        my_bytes = my_bytes + createChunk(createImageInfo(im), 3)
+        my_bytes = my_bytes + createChunk(createImageInfo(img), 3)
 
     # blowup image
     if blowup:
-        im = im.resize((int(im.width * 2), int(im.height * 2)), resample=Image.NEAREST)
+        img = img.resize((int(img.width * 2), int(img.height * 2)), resample=Image.NEAREST)
         scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_BLOWUP] = True
 
     if isDisguiseEnabled:
-        im.paste(thumb, (0, 0), mask=None)
+        img.paste(thumb, (0, 0), mask=None)
 
     # serialize parameters
     print("Used scrambling configuration: ", scramblerParametersForDataField)
@@ -971,7 +971,8 @@ if isScrambleModeSelected:
     my_bytes = createChunk(my_bytes, HEADER_VERSION_MAGIC_NUMBER + HEADER_VERSION_ENCODER)
 
     print("Serialize Data...")
-    (imageWithMetadata, imagePosX, imagePosY) = serialize(im, my_bytes, freeSpace=0, fullColumn=0, fullLine=0, bottom=0,
+    (imageWithMetadata, imagePosX, imagePosY) = serialize(img, my_bytes, freeSpace=0, fullColumn=0, fullLine=0,
+                                                          bottom=0,
                                                           direction=0, left=0, right=0)
 
     if isLogoEnabled:
@@ -1075,17 +1076,15 @@ else:
             print("Image Height: ", finalImageDimensions[1])
             seek = seek + chunkLength + 3
 
-        elif chunkType == 4:
+        elif chunkType == 4 and versionStored == 1:
             print("Chunk: Scrambler Parameters")
             print("Length: ", chunkLength)
             chunkData = getChunkData(myRestoredBytes, seek)
-            if versionStored == 1:
-                received_params = pickle.loads(bytes(chunkData))
-            else:
-                received_params = json.loads(bytearray(chunkData).decode("utf-8"))
+            received_params = pickle.loads(bytes(chunkData))
+            received_param = json.loads(bytearray(chunkData).decode("utf-8"))
+        else:
             print("Parameters: ", received_params)
             seek = seek + chunkLength + 3
-        else:  # unknown
             print("Chunk: UNKNOWN TYPE", chunkType)
             print("Length: ", chunkLength)
             seek = seek + chunkLength + 3
