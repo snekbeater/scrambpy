@@ -64,10 +64,8 @@ except ImportError:
         sys.exit()
 
 
-def calculateResidual(img1, img2):
-    residue = 0
-    pixels = 0
-    diff = ImageChops.difference(img1, img2)
+def calculateResidual(img_1, img_2, residue, pixels):
+    diff = ImageChops.difference(img_1, img_2)
     for y in range(diff.height):
         for x in range(diff.width):
             r, g, b = diff.getpixel((x, y))
@@ -76,11 +74,8 @@ def calculateResidual(img1, img2):
     return residue / pixels
 
 
-def calculateResidualFast(img1, img2):
-    residue = 0
-    pixels = 0
-
-    diff = ImageChops.difference(img1, img2)
+def calculateResidualFast(img_1, img_2, residue, pixels):
+    diff = ImageChops.difference(img_1, img_2)
 
     diff = diff.resize((math.floor(diff.width / 10), math.floor(diff.height / 10)))
 
@@ -95,8 +90,8 @@ def calculateResidualFast(img1, img2):
 
 def calculateSubMapScramblePercent(submap_first, submap_second):
     same = 0
-    for i in range(len(submap_first)):
-        if submap_first[i] == submap_second[i]:
+    for k in range(len(submap_first)):
+        if submap_first[k] == submap_second[k]:
             same = same + 1
     return same / len(submap_first)
 
@@ -133,45 +128,30 @@ def readByte(image, x_position, y_position):
     return theByte
 
 
-def serialize(image, byteArray) -> Image:
+def serialize(image, byteArray, bottom, left, right, direction, freeSpace, fullLine, fullColumn, top=1) -> Image:
     imageSpaceWidth = math.ceil(image.width / 8)
     imageSpaceHeight = math.ceil(image.height / 8)
 
-    # lines on top, bottom ... etc
-    top = 1
-    bottom = 0
-    left = 0
-    right = 0
-
-    # direction of space search
-    direction = 0
-
-    # space in byte
-    freeSpace = 0
     neededSpace = len(byteArray)
-
-    # fullX = no of blocks per line or column
-    fullLine = 0
-    fullColumn = 0
 
     while freeSpace < neededSpace:
         if direction == 0:  # right
-            top = top + 1
+            top += 1
         elif direction == 1:  # down
             if right == 0:
                 right = 2
             else:
-                right = right + 1
+                right += 1
         elif direction == 2:  # left
             if bottom == 0:
                 bottom = 2
             else:
-                bottom = bottom + 1
+                bottom += 1
         elif direction == 3:  # up
             if left == 0:
                 left = 2
             else:
-                left = left + 1
+                left += 1
 
         # calculate space
         fullLine = imageSpaceWidth + left + right
@@ -181,13 +161,13 @@ def serialize(image, byteArray) -> Image:
         freeSpace = freeBlocks  # HEADER_VERSION_ENCODER 1: a block equals a byte
 
         # add safe zone (8 pixel distance between data and image
-        freeSpace = freeSpace - imageSpaceWidth
+        freeSpace -= imageSpaceWidth
         if right > 0:
-            freeSpace = freeSpace - imageSpaceHeight
+            freeSpace -= imageSpaceHeight
         elif left > 0:
-            freeSpace = freeSpace - imageSpaceHeight
+            freeSpace -= imageSpaceHeight
         elif bottom > 0:
-            freeSpace = freeSpace - imageSpaceWidth
+            freeSpace -= imageSpaceWidth
 
         direction += 1
         if direction == 4:
@@ -214,103 +194,95 @@ def serialize(image, byteArray) -> Image:
         i += 1
 
         if direction == 0:
-            posX = posX + 1
+            posX += 1
         elif posX + 1 < fullLine - marginRight:
             direction = 1
-            posY = posY + 1
-            marginTop = marginTop + 1
+            posY += 1
+            marginTop += 1
         elif direction == 1:
-            posY = posY + 1
+            posY += 1
         elif posY + 1 < fullColumn - marginBottom:
             direction = 2
-            posX = posX - 1
+            posX -= 1
             marginRight = marginRight + 1
         elif direction == 2:
-            posX = posX - 1
+            posX -= 1
         elif posX > marginLeft:
             direction = 3
-            posY = posY - 1
+            posY -= 1
             marginBottom = marginBottom + 1
         elif direction == 3 and posY > marginTop:
-            posY = posY - 1
+            posY -= 1
         else:
             direction = 0
-            posX = posX + 1
-            marginLeft = marginLeft + 1
+            posX += 1
+            marginLeft += 1
 
     return croppedim, left * 8, top * 8
 
 
-def deserialize(image, length):
+def deserialize(image, length, posX, posY, margin_Top, margin_Left, marginBottom, marginRight, direction, i, off_set_X,
+                off_set_Y=2):
     byteArray = []
-    posX = 0
-    posY = 0
-    marginTop = 0
-    marginLeft = 0
-    marginBottom = 0
-    marginRight = 0
-    direction = 0
-    i = 0
     # TODO %8 images.. no more needed, since scrambled images always are %8=0
     ## coorect /8 images
     fullLine = math.floor(image.width / 8)
     fullColumn = math.floor(image.height / 8)
 
     # offset in blocks for the image data (image starts at (offsetX*8, offsetY*8) )
-    offsetX = 0
-    offsetY = 2
 
     while i < length:
 
         byte1 = readByte(image, posX * 8, posY * 8)
         byteArray.append(byte1)
-        i = i + 1
+        i += 1
 
         if direction == 0:  # right
             if posX + 1 < fullLine - marginRight:
-                posX = posX + 1
+                posX += 1
             else:
                 direction = 1
-                posY = posY + 1
-                marginTop = marginTop + 1
+                posY += 1
+                margin_Top += 1
         elif direction == 1:  # down
             if posY + 1 < fullColumn - marginBottom:
-                posY = posY + 1
+                posY += 1
             else:
                 direction = 2
-                posX = posX - 1
-                marginRight = marginRight + 1
+                posX -= 1
+                marginRight += 1
         elif direction == 2:  # left
-            if posX > marginLeft:
-                posX = posX - 1
+            if posX > margin_Left:
+                posX -= 1
             else:
                 direction = 3
-                posY = posY - 1
-                marginBottom = marginBottom + 1
-                offsetX = offsetX + 1
+                posY -= 1
+                marginBottom += 1
+                off_set_X += 1
         elif direction == 3:  # up
-            if posY > marginTop:
-                posY = posY - 1
+            if posY > margin_Top:
+                posY -= 1
             else:
                 direction = 0
-                posX = posX + 1
-                marginLeft = marginLeft + 1
-                offsetY = offsetY + 1
-    if offsetX > 0:
-        offsetX = offsetX + 1
-    return byteArray, offsetX, offsetY
+                posX += 1
+                margin_Left += 1
+                off_set_Y += 1
+    if off_set_X > 0:
+        off_set_X += 1
+    return byteArray, off_set_X, off_set_Y
 
 
-def createChunk(data, chunkType, mode=0, eec=0):
+def createChunk(data, chunk_Type):
     if len(data) > pow(2, 16):
         print("Chunk is bigger than allowed. Panic")
         sys.exit(3)
 
     loByte = len(data) & 255
     hiByte = len(data) >> 8
-    data.insert(0, chunkType)
-    data.insert(1, hiByte)
-    data.insert(2, loByte)
+    data.extend(chunk_Type, hiByte, loByte)
+    # data.insert(0, chunk_Type)
+    # data.insert(1, hiByte)
+    # data.insert(2, loByte)
     return data
 
 
@@ -374,10 +346,10 @@ def turnBlockInMatrix(matrix, x, y, clockwise=True):
                 matrix[x][y] = t
 
 
-def mixSubstitutionMatrix(matrix, seed=0, percent_Of_Turns=20):
+def mixSubstitutionMatrix(matrix, Seed=0, percent_Of_Turns=20):
     print("calculating subseeds...")
-    print("seed ", seed)
-    subSeeds = random_uniform_sample(3, [0, 1000], seed=seed)
+    print("seed ", Seed)
+    subSeeds = random_uniform_sample(3, [0, 1000], seed=Seed)
 
     size = len(matrix) * len(matrix[0])
     print("blocks ", size)
@@ -385,41 +357,39 @@ def mixSubstitutionMatrix(matrix, seed=0, percent_Of_Turns=20):
     numberOfTurns = round(size * percent_Of_Turns * 0.01)
     print("number of turns", numberOfTurns)
 
-    xPositions = random_uniform_sample(numberOfTurns, [0, len(matrix) - 1], seed=seed + subSeeds[0])
-    yPositions = random_uniform_sample(numberOfTurns, [0, len(matrix[0]) - 1], seed=seed + subSeeds[1])
-    reverse = random_uniform_sample(numberOfTurns, [0, 1], seed=seed + subSeeds[2])
+    xPositions = random_uniform_sample(numberOfTurns, [0, len(matrix) - 1], seed=Seed + subSeeds[0])
+    yPositions = random_uniform_sample(numberOfTurns, [0, len(matrix[0]) - 1], seed=Seed + subSeeds[1])
+    reverse = random_uniform_sample(numberOfTurns, [0, 1], seed=Seed + subSeeds[2])
 
-    for i in range(numberOfTurns):
-        turnBlockInMatrix(matrix, xPositions[i], yPositions[i], clockwise=reverse[i])
+    for j in range(numberOfTurns):
+        turnBlockInMatrix(matrix, xPositions[j], yPositions[j], clockwise=reverse[j])
     return matrix
 
 
-def mixSubstitutionMap_heavy(substitutionMap, seed=0, rounds=4):
+def mixSubstitutionMap_heavy(substitution_map, Seed=0, rounds=4):
     # total mixed
-    randnumbers = random_uniform_sample(len(substitutionMap) * rounds, [0, len(substitutionMap) - 1], seed=seed)
-    for i in range(len(randnumbers)):
-        value = substitutionMap.pop(randnumbers[i])
-        substitutionMap.append(value)
-    return substitutionMap
+    random_numbers = random_uniform_sample(len(substitution_map) * rounds, [0, len(substitution_map) - 1], seed=Seed)
+    for k in range(len(random_numbers)):
+        value = substitution_map.pop(random_numbers[k])
+        substitution_map.append(value)
+    return substitution_map
 
 
-def mixSubstitutionMap_medium(substitutionMap, seed=0, distance=10, rounds=1):
-    # slightly mixed
-    # rounds = 1
-    randnumbers = random_uniform_sample(len(substitutionMap) * rounds, [distance * -1, distance], seed=seed)
-    for r in range(rounds):
-        for i in range(len(substitutionMap)):
-            value = substitutionMap.pop(i)
-            substitutionMap.insert(i + randnumbers[i + len(substitutionMap) * r], value)
+def mixSubstitutionMap_medium(substitution_map, Seed=0, distance=10, rounds=1):
+    random_numbers = random_uniform_sample(len(substitution_map) * rounds, [distance * -1, distance], seed=Seed)
+    for k in range(rounds):
+        for j in range(len(substitution_map)):
+            value = substitution_map.pop(j)
+            substitution_map.insert(j + random_numbers[j + len(substitution_map) * k], value)
 
-    return substitutionMap
+    return substitution_map
 
 
 def createJPEGSampleInMemory(image, quality=80):
-    memoryFile = BytesIO()
-    image.save(memoryFile, format='JPEG', quality=quality)
+    memory_File = BytesIO()
+    image.save(memory_File, format='JPEG', quality=quality)
 
-    return Image.open(memoryFile)
+    return Image.open(memory_File)
 
 
 def transferBlocks(sourceImage, sourceMaskImage, targetImage, targetMaskImage):
@@ -454,13 +424,13 @@ def transferBlocks(sourceImage, sourceMaskImage, targetImage, targetMaskImage):
 
 
 # check if LOGO constant exists in case the user deletes it for security
-def placeLogo(image, xpos, ypos):
+def placeLogo(image, x_position, y_position):
     if "LOGO" in globals():
         logoData = pickle.loads(bytes(LOGO))
         logoFile = BytesIO(bytearray(logoData))
         logoImage = Image.open(logoFile)
-        print("Placing Logo at ", xpos + 1, ypos + 1)
-        image.paste(logoImage, (xpos + 1, ypos + 1), mask=None)
+        print("Placing Logo at ", x_position + 1, y_position + 1)
+        image.paste(logoImage, (x_position + 1, y_position + 1), mask=None)
     return image
 
 
@@ -486,16 +456,16 @@ def resizeQuads(image):
     # . a . a . a . a . a . a . a a .
     # . . . . . . . . . . . . . . . .
 
-    resultim = image.resize((int(image.width / 2), int(image.height / 2)), resample=Image.NEAREST)
+    result_img = image.resize((int(image.width / 2), int(image.height / 2)), resample=Image.NEAREST)
 
     w = [1, 1, 1, 1, 1, 1, 1, 0]
     v = [1, 1, 1, 1, 1, 1, 1, 0]
 
-    for y in range(resultim.height):
-        for x in range(resultim.width):
+    for y in range(result_img.height):
+        for x in range(result_img.width):
             r, g, b = image.getpixel((x * 2 + v[x % 8], y * 2 + w[y % 8]))
-            resultim.putpixel((x, y), (r, g, b))
-    return resultim
+            result_img.putpixel((x, y), (r, g, b))
+    return result_img
 
 
 def calculateChecksum(data):
@@ -513,9 +483,9 @@ def calculatePasswordSeed(password):
     return password_Seed
 
 
-def copyBlock(imageSource, imageDest, xposSource, yposSource, xposDest, yposDest):
-    block = imageSource.crop((xposSource, yposSource, xposSource + 8, yposSource + 8))
-    imageDest.paste(block, (xposDest, yposDest), mask=None)
+def copyBlock(imageSource, imageDest, x_pos_Source, y_pos_Source, x_pos_Dest, y_pos_Dest):
+    block = imageSource.crop((x_pos_Source, y_pos_Source, x_pos_Source + 8, y_pos_Source + 8))
+    imageDest.paste(block, (x_pos_Dest, y_pos_Dest), mask=None)
 
 
 def createImageInfo(image):
@@ -531,23 +501,23 @@ def createImageInfo(image):
     return data
 
 
-def switchBlocks(image, xpos1, ypos1, xpos2, ypos2):
-    block1 = image.crop((xpos1, ypos1, xpos1 + 8, ypos1 + 8))
-    block2 = image.crop((xpos2, ypos2, xpos2 + 8, ypos2 + 8))
-    image.paste(block1, (xpos2, ypos2), mask=None)
-    image.paste(block2, (xpos1, ypos1), mask=None)
+def switchBlocks(image, x_position_1, y_position_1, x_position_2, y_position_2):
+    block1 = image.crop((x_position_1, y_position_1, x_position_1 + 8, y_position_1 + 8))
+    block2 = image.crop((x_position_2, y_position_2, x_position_2 + 8, y_position_2 + 8))
+    image.paste(block1, (x_position_2, y_position_2), mask=None)
+    image.paste(block2, (x_position_1, y_position_1), mask=None)
 
 
 def createSubstitutionMapFromMask(mask_image):
     serialPos = 0
-    substitutionMap = []
+    substitution_map = []
     for y in range(mask_image.height):
         for x in range(mask_image.width):
             luma = mask_image.getpixel((x, y))
             if luma > 0:
-                substitutionMap.append(serialPos)
+                substitution_map.append(serialPos)
             serialPos = serialPos + 1
-    return substitutionMap
+    return substitution_map
 
 
 def createSubstitutionMatrixFromMask(mask_image):
@@ -576,19 +546,19 @@ def scrambleBlocksOfImageWithMatrix(matrix, image, reverse=False):
     return image
 
 
-def scrambleBlocksOfImage(substitutionMapSource, substitutionMap, image, reverse=False):
+def scrambleBlocksOfImage(substitution_Map_Source, substitution_map, image, reverse=False):
     # image must have %8=0 pixel width/height at this point!
     # mask and thus subMap must fit to that!
-    for ii in range(len(substitutionMap)):
+    for ii in range(len(substitution_map)):
         blocksWidth = math.floor(image.width / 8)
         if reverse:
-            i = len(substitutionMap) - 1 - ii
+            i = len(substitution_map) - 1 - ii
         else:
             i = ii
-        x1 = substitutionMapSource[i] % blocksWidth
-        y1 = math.floor(substitutionMapSource[i] / blocksWidth)
-        x2 = substitutionMap[i] % blocksWidth
-        y2 = math.floor(substitutionMap[i] / blocksWidth)
+        x1 = substitution_Map_Source[i] % blocksWidth
+        y1 = math.floor(substitution_Map_Source[i] / blocksWidth)
+        x2 = substitution_map[i] % blocksWidth
+        y2 = math.floor(substitution_map[i] / blocksWidth)
         switchBlocks(image, x1 * 8, y1 * 8, x2 * 8, y2 * 8)
     return image
 
@@ -732,7 +702,7 @@ for opt, arg in opts:
         # finding difference
         diff = ImageChops.difference(img1, img2)
         # showing the difference
-        residue = calculateResidual(img1, img2)
+        residue = calculateResidual(img1, img2, pixels=0, residue=0, )
         print("Residual: ", residue)
         diff.show()
         sys.exit()
@@ -776,34 +746,34 @@ if isScrambleModeSelected:
         print("Image mode is", im.mode, ", converting it to RGB")
         im = im.convert("RGB")
 
-    mybytes = []
+    my_bytes = []
 
     # TODO: only do this at one place
     if not isDisguiseEnabled:
-        mybytes = mybytes + createChunk(createImageInfo(im), 3)
+        my_bytes = my_bytes + createChunk(createImageInfo(im), 3)
 
     maskDimensions = (int(math.ceil(im.width / 8.0)), int(math.ceil(im.height / 8.0)))
 
     if os.path.exists(mask_file_name):
-        pngim = Image.open(mask_file_name)
+        png_img = Image.open(mask_file_name)
     else:
         # no png specified, use white image mask (which equals full image will be scrambled)
         mode = '1'
-        color = (1)
-        pngim = Image.new(mode, maskDimensions, color)
+        color = 1
+        png_img = Image.new(mode, maskDimensions, color)
 
-    if not pngim.size == maskDimensions:
-        pngim = pngim.resize(maskDimensions, resample=Image.NEAREST)
-    print("Mask dimensions", pngim.size)
+    if not png_img.size == maskDimensions:
+        png_img = png_img.resize(maskDimensions, resample=Image.NEAREST)
+    print("Mask dimensions", png_img.size)
     # reduce to 1 bpp
-    pngim = pngim.convert("1", dither=False)
+    png_img = png_img.convert("1", dither=False)
 
     memoryFile = BytesIO()
-    pngim.save(memoryFile, format='PNG', optimize=True, icc_profile=None)
+    png_img.save(memoryFile, format='PNG', optimize=True, icc_profile=None)
 
-    chunkbytes = createChunk(list(memoryFile.getvalue()), 2)
+    chunk_bytes = createChunk(list(memoryFile.getvalue()), 2)
     print("Mask size:", memoryFile.getbuffer().nbytes, "bytes")
-    mybytes = mybytes + chunkbytes
+    my_bytes = my_bytes + chunk_bytes
 
     # padding for testing
     '''
@@ -822,9 +792,9 @@ if isScrambleModeSelected:
     # encode Text
     if not embeddedText == "" and len(embeddedText) < 400:
         print("Encoding user text")
-        myrawdata = list(bytearray(embeddedText, "utf-8"))
-        chunkbytes = createChunk(myrawdata, CHUNK_TYPE_TEXT)
-        mybytes = mybytes + chunkbytes
+        my_raw_data = list(bytearray(embeddedText, "utf-8"))
+        chunk_bytes = createChunk(my_raw_data, CHUNK_TYPE_TEXT)
+        my_bytes = my_bytes + chunk_bytes
     else:
         print("Text too long")
         sys.exit(3)
@@ -843,22 +813,22 @@ if isScrambleModeSelected:
 
         im = im.crop((0, 0, newWidth, newHeight))
 
-        overscanColumns = 8 - originalWidth % 8
-        if overscanColumns < 8:
-            print("Filling right side overscan")
+        over_scan_Columns = 8 - originalWidth % 8
+        if over_scan_Columns < 8:
+            print("Filling right side over scan")
             rightStrip = originalIm.copy().crop((originalIm.width - 1, 0, originalIm.width, originalIm.height))
-            for i in range(overscanColumns):
+            for i in range(over_scan_Columns):
                 im.paste(rightStrip, (originalIm.width + i, 0), mask=None)
-        overscanLines = 8 - originalIm.height % 8
-        if overscanLines < 8:
-            print("Filling bottom overscan")
+        over_scan_Lines = 8 - originalIm.height % 8
+        if over_scan_Lines < 8:
+            print("Filling bottom over scan")
             bottomStrip = originalIm.copy().crop((0, originalIm.height - 1, originalIm.width, originalIm.height))
-            for i in range(overscanLines):
+            for i in range(over_scan_Lines):
                 im.paste(bottomStrip, (0, originalIm.height + i), mask=None)
 
     if isDisguiseEnabled:
         print("Disguise Enabled")
-        numberOfBlocksOfMask = countBlocksOfMask(pngim)
+        numberOfBlocksOfMask = countBlocksOfMask(png_img)
         print("Extracting", numberOfBlocksOfMask, " Blocks of input image")
 
         imDisguise = Image.open(disguise_filename)
@@ -866,25 +836,25 @@ if isScrambleModeSelected:
         if not imDisguise.mode == "RGB":
             print("Image mode is", imDisguise.mode, ", converting it to RGB")
             imDisguise = imDisguise.convert("RGB")
-        THUMB_SIDELENGTH = 200  # must be %8=0 and /2%8=0 for blowup !!
+        THUMB_SIDE_LENGTH = 200  # must be %8=0 and /2%8=0 for blowup !!
 
         # portrait or landscape?
         if imDisguise.width < imDisguise.height:
             # portrait
             thumb = imDisguise.resize(
-                (int(round((imDisguise.width * THUMB_SIDELENGTH) / imDisguise.height)), THUMB_SIDELENGTH),
+                (int(round((imDisguise.width * THUMB_SIDE_LENGTH) / imDisguise.height)), THUMB_SIDE_LENGTH),
                 resample=Image.BICUBIC)
         else:
             # landscape
             thumb = imDisguise.resize(
-                (THUMB_SIDELENGTH, int(round((imDisguise.height * THUMB_SIDELENGTH) / imDisguise.width))),
+                (THUMB_SIDE_LENGTH, int(round((imDisguise.height * THUMB_SIDE_LENGTH) / imDisguise.width))),
                 resample=Image.BICUBIC)
 
         if blowup:
-            THUMB_SIDELENGTH = int(THUMB_SIDELENGTH / 2)
+            THUMB_SIDE_LENGTH = int(THUMB_SIDE_LENGTH / 2)
 
-        # print("Thumb space: ",(THUMB_SIDELENGTH + 8) / 8, (THUMB_SIDELENGTH + 8) / 8)
-        neededBlocks = math.ceil((THUMB_SIDELENGTH + 8) / 8) * ((THUMB_SIDELENGTH + 8) / 8) + numberOfBlocksOfMask
+        # print("Thumb space: ",(THUMB_SIDE_LENGTH + 8) / 8, (THUMB_SIDE_LENGTH + 8) / 8)
+        neededBlocks = math.ceil((THUMB_SIDE_LENGTH + 8) / 8) * ((THUMB_SIDE_LENGTH + 8) / 8) + numberOfBlocksOfMask
         print(neededBlocks)
         side = math.ceil(math.sqrt(neededBlocks))
         print(side)
@@ -893,19 +863,19 @@ if isScrambleModeSelected:
 
         # patchImage.paste(thumb,(0, 0),mask=None)
         # patchImage.show()
-        patchMaskImage = Image.new('1', (side, side), (1))
+        patchMaskImage = Image.new('1', (side, side), 1)
 
         patchMaskDraw = ImageDraw.Draw(patchMaskImage)
         # TODO is -1 correct? there was a 16px safe zone and the reason was unclear
-        patchMaskDraw.rectangle((0, 0, (THUMB_SIDELENGTH + 8) / 8 - 1, (THUMB_SIDELENGTH + 8) / 8 - 1), fill=(0))
+        patchMaskDraw.rectangle((0, 0, (THUMB_SIDE_LENGTH + 8) / 8 - 1, (THUMB_SIDE_LENGTH + 8) / 8 - 1), fill=0)
         # patchMaskImage.show()
 
         memoryFile = BytesIO()
         patchMaskImage.save(memoryFile, format='PNG', optimize=True, icc_profile=None)
 
-        chunkbytes = createChunk(list(memoryFile.getvalue()), 2)
+        chunk_bytes = createChunk(list(memoryFile.getvalue()), 2)
         print("Mask size:", memoryFile.getbuffer().nbytes, "bytes")
-        mybytes = mybytes + chunkbytes
+        my_bytes = my_bytes + chunk_bytes
 
     if scrambler == "matrix":
         print("Using scrambler: matrix")
@@ -918,10 +888,10 @@ if isScrambleModeSelected:
 
         print("Turns: ", percentOfTurns, "%")
 
-        substitutionMatrix = createSubstitutionMatrixFromMask(pngim)
+        substitutionMatrix = createSubstitutionMatrixFromMask(png_img)
 
         print("mixing..")
-        mixSubstitutionMatrix(substitutionMatrix, seed=seed + passwordSeed, percent_Of_Turns=percentOfTurns)
+        mixSubstitutionMatrix(substitutionMatrix, Seed=seed + passwordSeed, percent_Of_Turns=percentOfTurns)
 
         print("scrambling image..")
         im = scrambleBlocksOfImageWithMatrix(substitutionMatrix, im, reverse=False)
@@ -932,9 +902,9 @@ if isScrambleModeSelected:
 
     elif (scrambler == "medium") or (scrambler == "heavy"):
 
-        substitutionMap = createSubstitutionMapFromMask(pngim)
+        substitutionMap = createSubstitutionMapFromMask(png_img)
         print("SubMap Size", len(substitutionMap))
-        if (len(substitutionMap) > 100000):
+        if len(substitutionMap) > 100000:
             print("SubMap Size might be too big, will probably run a long time")
         substitutionMapSource = substitutionMap.copy()
 
@@ -950,12 +920,12 @@ if isScrambleModeSelected:
 
         if scrambler == "medium":
             print("Using scrambler: medium")
-            substituationMap = mixSubstitutionMap_medium(substitutionMap, seed=seed + passwordSeed, distance=dist,
+            substitution_Map = mixSubstitutionMap_medium(substitutionMap, Seed=seed + passwordSeed, distance=dist,
                                                          rounds=rou)
         else:
             print("Using scrambler: heavy")
             scrambler = "heavy"
-            substituationMap = mixSubstitutionMap_heavy(substitutionMap, seed=seed + passwordSeed, rounds=rou)
+            substitution_Map = mixSubstitutionMap_heavy(substitutionMap, Seed=seed + passwordSeed, rounds=rou)
 
         scrambleBlocksOfImage(substitutionMapSource, substitutionMap, im, reverse=False)
 
@@ -968,14 +938,13 @@ if isScrambleModeSelected:
         sys.exit(3)
 
     if isDisguiseEnabled:
-        # TODO: 'Unbound local variables' options
-        transferBlocks(im, pngim, patchImage, patchMaskImage)
+        transferBlocks(im, png_img, patchImage, patchMaskImage)
         im = patchImage
         scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_PATCHIMAGE] = True
 
     # TODO only do this in one place
     if isDisguiseEnabled:
-        mybytes = mybytes + createChunk(createImageInfo(im), 3)
+        my_bytes = my_bytes + createChunk(createImageInfo(im), 3)
 
     # blowup image
     if blowup:
@@ -989,20 +958,21 @@ if isScrambleModeSelected:
     print("Used scrambling configuration: ", scramblerParametersForDataField)
     serial_params = json.dumps(scramblerParametersForDataField, separators=(',', ':'))
     print("JSON:", serial_params)
-    myrawdata = list(bytearray(serial_params, "utf-8"))
-    print("JSON bytes:", len(myrawdata))
-    chunkbytes = createChunk(myrawdata, 4)
-    mybytes = mybytes + chunkbytes
+    my_raw_data = list(bytearray(serial_params, "utf-8"))
+    print("JSON bytes:", len(my_raw_data))
+    chunk_bytes = createChunk(my_raw_data, 4)
+    my_bytes = my_bytes + chunk_bytes
 
-    checksum = calculateChecksum(mybytes)
+    checksum = calculateChecksum(my_bytes)
     print("Checksum: ", checksum)
-    mybytes = mybytes + [checksum]
+    my_bytes = my_bytes + [checksum]
 
     # finalize, write main header
-    mybytes = createChunk(mybytes, HEADER_VERSION_MAGIC_NUMBER + HEADER_VERSION_ENCODER)
+    my_bytes = createChunk(my_bytes, HEADER_VERSION_MAGIC_NUMBER + HEADER_VERSION_ENCODER)
 
     print("Serialize Data...")
-    (imageWithMetadata, imagePosX, imagePosY) = serialize(im, mybytes)
+    (imageWithMetadata, imagePosX, imagePosY) = serialize(im, my_bytes, freeSpace=0, fullColumn=0, fullLine=0, bottom=0,
+                                                          direction=0, left=0, right=0)
 
     if isLogoEnabled:
         imageWithMetadata = placeLogo(imageWithMetadata, imagePosX, imagePosY - 8)
@@ -1014,11 +984,13 @@ if isScrambleModeSelected:
 else:
     print("Mode: Descramble")
 
-    savedim = Image.open(input_file_name)
+    save_dim = Image.open(input_file_name)
 
     print("Decoding Header")
 
-    myRestoredBytes, marginLeft, marginTop = deserialize(savedim, 3)  # decode first 3 bytes (header+length)
+    myRestoredBytes, marginLeft, marginTop = deserialize(save_dim, 3, i=0, marginBottom=0, marginRight=0, margin_Left=0,
+                                                         posX=0, posY=0, direction=0, margin_Top=0, off_set_X=0,
+                                                         off_set_Y=0)
 
     dataHeader = decodeChunkType(myRestoredBytes, 0)
     versionStored = dataHeader - HEADER_VERSION_MAGIC_NUMBER
@@ -1035,7 +1007,8 @@ else:
 
     print("Decoding All Data Blocks")
     # TODO: 'Unbound local variables' options
-    myRestoredBytes, marginLeft, marginTop = deserialize(savedim, totalBlocks + 3)
+    myRestoredBytes = deserialize(save_dim, totalBlocks + 3, direction=0, i=0, margin_Left=0, margin_Top=0,
+                                  marginBottom=0, marginRight=0, off_set_X=0, posX=0, posY=0)
 
     checksumCalc = calculateChecksum(myRestoredBytes[3:len(myRestoredBytes) - 1])
     checksumStored = myRestoredBytes[len(myRestoredBytes) - 1]
@@ -1054,7 +1027,7 @@ else:
     print("Decoded ", len(myRestoredBytes), " bytes")
     print("Image starts at x=", offsetX, " y=", offsetY)
 
-    pngimageread = []
+    png_image_read = []
 
     seek = 3
 
@@ -1088,8 +1061,8 @@ else:
 
             pngfile = BytesIO(bytearray(chunkData))
 
-            pngimageread.append(Image.open(pngfile))
-            print("Images embedded so far:", len(pngimageread))
+            png_image_read.append(Image.open(pngfile))
+            print("Images embedded so far:", len(png_image_read))
             seek = seek + chunkLength + 3
 
         elif chunkType == 3:
@@ -1116,7 +1089,6 @@ else:
             print("Chunk: UNKNOWN TYPE", chunkType)
             print("Length: ", chunkLength)
             seek = seek + chunkLength + 3
-    # TODO: 'Unbound local variables' options
     scrambler = received_params[SCRAMBLERPARAMETERSDATAFIELD_SCRAMBLER]
 
     if (SCRAMBLERPARAMETERSDATAFIELD_PATCHIMAGE in received_params) and not isDisguiseEnabled:
@@ -1144,11 +1116,11 @@ else:
         int(math.ceil(finalImageDimensions[0] / 8.0) * 8), int(math.ceil(finalImageDimensions[1] / 8.0) * 8))
 
     if blowup:
-        savedim = savedim.crop((offsetX, offsetY, offsetX + intermediateImageDimensions[0] * 2,
-                                offsetY + intermediateImageDimensions[1] * 2))
-        savedim = resizeQuads(savedim)
+        save_dim = save_dim.crop((offsetX, offsetY, offsetX + intermediateImageDimensions[0] * 2,
+                                  offsetY + intermediateImageDimensions[1] * 2))
+        save_dim = resizeQuads(save_dim)
     else:
-        savedim = savedim.crop(
+        save_dim = save_dim.crop(
             (offsetX, offsetY, offsetX + intermediateImageDimensions[0], offsetY + intermediateImageDimensions[1]))
 
     if isDisguiseEnabled:
@@ -1159,8 +1131,8 @@ else:
             print("Image mode is", imDisguise.mode, ", converting it to RGB")
             imDisguise = imDisguise.convert("RGB")
         # imDisguise.show()
-        transferBlocks(savedim, pngimageread[1], imDisguise, pngimageread[0])
-        savedim = imDisguise
+        transferBlocks(save_dim, png_image_read[1], imDisguise, png_image_read[0])
+        save_dim = imDisguise
 
     if scrambler == "matrix":
         print("Using scrambler: matrix")
@@ -1168,13 +1140,13 @@ else:
         seed = received_params[SCRAMBLERPARAMETERSDATAFIELD_SEED]
         percentOfTurns = received_params[SCRAMBLERPARAMETERSDATAFIELD_PERCENTAGEOFTURNS]
 
-        substitutionMatrix = createSubstitutionMatrixFromMask(pngimageread[0])
+        substitutionMatrix = createSubstitutionMatrixFromMask(png_image_read[0])
 
         print("mixing..")
-        mixSubstitutionMatrix(substitutionMatrix, seed=seed + passwordSeed, percent_Of_Turns=percentOfTurns)
+        mixSubstitutionMatrix(substitutionMatrix, Seed=seed + passwordSeed, percent_Of_Turns=percentOfTurns)
 
         print("descrambling image..")
-        savedim = scrambleBlocksOfImageWithMatrix(substitutionMatrix, savedim, reverse=True)
+        save_dim = scrambleBlocksOfImageWithMatrix(substitutionMatrix, save_dim, reverse=True)
 
 
 
@@ -1186,28 +1158,28 @@ else:
         dist = received_params[SCRAMBLERPARAMETERSDATAFIELD_DISTANCE]
         rou = received_params[SCRAMBLERPARAMETERSDATAFIELD_ROUNDS]
 
-        substitutionMap = createSubstitutionMapFromMask(pngimageread[0])
+        substitutionMap = createSubstitutionMapFromMask(png_image_read[0])
         if len(substitutionMap) > 100000:
             print("SubMap Size might be too big, will probably run a long time")
         substitutionMapSource = substitutionMap.copy()
 
         if scrambler == "medium":
             print("Using scrambler: medium")
-            substituationMap = mixSubstitutionMap_medium(substitutionMap, seed=seed + passwordSeed, distance=dist,
+            substitution_Map = mixSubstitutionMap_medium(substitutionMap, Seed=seed + passwordSeed, distance=dist,
                                                          rounds=rou)
         else:
             print("Using scrambler: heavy")
             scrambler = "heavy"
-            substituationMap = mixSubstitutionMap_heavy(substitutionMap, seed=seed + passwordSeed, rounds=rou)
+            substitution_Map = mixSubstitutionMap_heavy(substitutionMap, Seed=seed + passwordSeed, rounds=rou)
 
         print("Descrambling...")
 
-        scrambleBlocksOfImage(substitutionMapSource, substitutionMap, savedim, reverse=True)
+        scrambleBlocksOfImage(substitutionMapSource, substitutionMap, save_dim, reverse=True)
 
     if not intermediateImageDimensions == finalImageDimensions:
-        savedim = savedim.crop((0, 0, finalImageDimensions[0], finalImageDimensions[1]))
+        save_dim = save_dim.crop((0, 0, finalImageDimensions[0], finalImageDimensions[1]))
 
     print("Writing image to disk")
-    savedim.save(out_put_file_name, quality=outputQuality)
+    save_dim.save(out_put_file_name, quality=outputQuality)
 
 print("Done")
