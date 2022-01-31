@@ -1,12 +1,21 @@
 # Scramb.py
-**Scramb.py** is a region based JPEG Image Scrambler and Descrambler written in Python.
+**Scramb.py** is a region based JPEG Image Scrambler and Descrambler written in Python for End-to-End-Encrypted (E2EE) Image distribution through unaware channels.
 
 ![](img/overview2.png)
 
+**Start now:**
 - [Installation Windows & Linux](#installation)
 - [Usage](#usage)
 - [Options](#options)
+
+**How it works:**
+- [Whitepaper](#whitepaper)
 - [Details](#details)
+
+**Upcoming Features:**
+- [Roadmap](#roadmap)
+
+**Examples:**
 - [Examples](#examples)
 
 
@@ -14,6 +23,10 @@
 - Offend the easily offended *less*: Upload pictures to sites like Twitter, Facebook, DeviantArt etc. (esp. Social Media) that normally trigger people to report these *despite* being okay and according to TOS of the site.
 - Upload a pic as a teaser but give away the password only to a small section of people
 - Have a gallery with images showing no sign of a second meaning and distribute the patch images separatly.
+- Use as End-to-End-Encryption E2EE method for websites, messaging systems, chats, email, etc.
+- Image Hosts / Websites / Chat & Messaging services are left unaware of image content
+- Prevent and circumvent automated scanning / image hashing / photo hashing and machine learning / AI recognition of images. Scramb.py helps bringing back the effort of scanning and analysing images to a manual and thus expensive, labor intensive level. It thus helps to prevent mass surveillance. Scramb.py builds another layer of encryption if E2EE of messaging services should be crippled or broken by new laws.
+- In comparison to encryption on binary level (ZIP with Password, VeraCrypt Container, PGP), Scramb.py retains a JPEG / an image that can be uploaded to a lot of websites and messaging platforms. Binary encrypted content cannot be uploaded there.
 
 ## Main Features
 - Scramb.py can scramble images *regions*. So you can e.g. scramble only the face of a person.
@@ -29,16 +42,30 @@
 - Does not depend on any binary meta data within the JPEG file (EXIF, XMP, IPTC), as these are normally completly stripped by all major social media sites.
 
 
-### Example: Scramble
+## How it looks
+
+### Regional scrambled Image
 ![](img/Lenna_heavy_pw.jpg)
 
 *In this example, only Lenna's face was scrambled and the scrambled image is password protected. You can actually try the example images in this repo with scramb.py yourself!*
 *Also, people get offended when Lenna is used (although, now we also have Fabio, which I use as a Black/White Test Image!... so, Lenna is scrambled here in this repo :-)*
 
-### Example: Patch
+### Patch for another Image
 ![](img/kodim21_patch.jpg)
 
 *This is a patch image. Scramb.py can create these to separate transported images from their recreation metadata. The patch image is then used to "patch in" the scrambled image blocks next to the thumbnail you see here.*
+
+
+## Warning
+
+As long as it is hacking-fun to circumvent scanning and reporting, you are invited to try out scramb.py!
+
+BUT
+
+Scramb.py should not be used in real-world situations that *require* encryption and your life or personal wealth rely on it. It is only intended for demonstration and experimentation. If you need strong message and image encryption, **do not use Scramb.py**! Use a well-regarded, open-source OpenPGP implementation such as GnuPG or encryption systems like VeraCrypt.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
 
 # Installation
 
@@ -127,11 +154,11 @@ You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 ## Calculate Residue
 `scramb.py -r <imagefile1.jpg> <imagefile2.jpg>`
 
-## Options
-### -x <number> -y <number> -z <number>
+# Options
+## -x <number> -y <number> -z <number>
 Specific parameter for the chosen scrambler, see table below.
 
-### -s <scrambler>
+## -s <scrambler>
 The scrambler to be used
 
 scrambler | x | y | z | What it does
@@ -141,8 +168,8 @@ scrambler | x | y | z | What it does
 `heavy` | seed | rounds | - | moves every block somewhere else *rounds* times
 
   
-### -d  
-`-d <disguiseimage.jpg>
+## -d  
+`-d <disguiseimage.jpg>`
 
 With `-d` scramb.py will take 3 images as input:
 - -i original image
@@ -151,32 +178,99 @@ With `-d` scramb.py will take 3 images as input:
 
 scramb.py will then generate a patch-image.
 
-### -2
+## -2
 Blowup image by 2x
-### --quality=
+
+## --quality=
 `--quality=10..100`
 
 JPEG Output Quality 0-100, 100=best, default=100
-### --no-logo
+
+## --no-logo
 do not include Logo in Image
-### -t
+
+## -t
 `-t "<Text>"`
 
 Embed text to show when descrambling (max. 400 chars)
-### --silent
+
+## --silent
 Do not pause on descramble for displaying text
-### -p
+
+## -p
 Scramble with password (ask for it)
-### --password=
+
+## --password=
 `--password=<password>`
 
 Scramble with `<password>`
 
 Caution: it's then in your console history! Use `-p` instead!
-### --stealth
+
+## --stealth
 Hide password use from generated image. You must run descrambling with `-p` or `--password` option then! Descrambling without these options will otherwise not promt for a password and the descrambled image is still scrambled (in a different way).
-### --overwrite
+
+## --overwrite
 Overwrite output file when it exists
+
+# Whitepaper
+
+Scramb.py was written to showcase how you can use image sharing / posting sites like Twitter, facebook, DeviantArt etc. and not be bothered by their automatic image scanning system. You are also not bothered by people who normally would be offended by your image and report it to the website if they could see it "clearly".
+  
+## Passwordless mode with region scramble
+*Prevent reporting of images by casual users and automated scanning*
+
+![](img/scrambpy_1_passwordless_v3.png)
+
+1. A publisher wants to distribute an image E2EE and uses scrambpy to regional scramble this image.
+He uploads the scrambled image to a website
+
+2. A consumer can download this image and descramble it with scrambpy
+
+3. The website uses content match systems to automatically match certain images. Both systems will fail and thus the image is not automatically reported / flagged.
+    - The photo hashing system fails because the scrambled image creates totally different hashes
+    - The machine learning system which tries to recognize "a woman" fails for same reason
+    Weak spot: If the content match system uses scrambpy, it can descramble the image and then do hashing and matching
+
+4. A casual viewer scrolls by the image and does not care, thus preventing triggering the user so that he/she reports the image.
+
+5. (Malign Case) An informer can also use scrambpy and now reports the image
+
+## Password mode with full scramble
+*Prevent automated scanning and manual reporting of images with password*
+
+![](img/scrambpy_2_password_v3.png)
+
+1. The publisher scrambles the image with a password and informs the informed consumer about the password through a secure channel. They exchange the image E2EE through a normal website.
+
+2. The website uses content match systems to automatically match certain images. Both systems will fail and thus the image is not automatically reported / flagged. This time, the system will also fail if the system uses scrambpy automatically, because the password is missing.
+
+3. A casual viewer and an informer cannot see the scrambled image.
+
+4. An informer cannot descramble the image without the correct password. He/She then still gets a scrambled image.
+
+## Patch Mode
+*Prevent reporting of images by casual users (or also informers if password is used) and automated scanning and distribute fully disguised image*
+
+![](img/scrambpy_3_patchmode2_v3.png)
+
+1. The publisher creates a disguise image without certain content.
+
+2. The publisher also creates the hidden image with certain content (a lighthouse in this case).
+
+3. Optional: Publisher and consumer exchage a password via a secure channel
+
+4. The publisher uploads the disguised image in full view and the patch image. He/She may upload both images to different websites.
+
+5. The websites use content match systems to automatically match certain images. Both systems will fail on both websites and thus the image is not automatically reported / flagged.
+    - The website on top with the disguised image has absolutly no reason to detect anything (100% Save)
+    - The website on the bottom does not have the full image information to detect anything. There is a weak spot when using the embedded thumbnail and automated scrambpy. If a password is used, this does not work anyway.
+
+6. The casual viewer does not care and thus does not report
+
+7. If no password is used, the informer can collect both images (disguise + patch) and then report the hidden image.
+
+8. If a password is used, the informer cannot descramble the image without the correct password. He/She then still gets the disguise image with scrambled content patched in.
 
 
 # Details
@@ -244,6 +338,21 @@ Windows use is easy for descramble
 ## Backdoor Free Code
 Code is easy to follow so feel free to check it for backdoors. You can even delete the encoded logo.
 
+# Roadmap
+Upcoming features in next releases:
+  
+## Features that are working in dev
+- GnuPG Public Key Exchange and Scrambling with GnuPG Public Key System
+- Public Key Exchange Image (your "Business Card" with your public key)
+- Bug corrected in heavy & medium scrambler
+- Large chunks in data snake (> 65kB)
+- Tar.gz file handling in data snake
+
+## Features that are prototyped
+- JavaScript version for Website and Greasemonkey integration
+- 4 or 8 Bytes per Datablock instead of 1 Byte
+- ECC Error Correction
+  
 # Examples
 
 ### Image region
