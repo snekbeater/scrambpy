@@ -2,6 +2,21 @@
 All notable changes to this project will be documented in this file.
 
 
+## 0.4.0-alpha - 2022-02-06
+### Added
+- GnuPG PKI public key image "business card" generation
+- 'pki' scrambler added for GnuPG PKI public key scrambling and descrambling
+- 'ultra' scrambler added (removes deficiencies esp. of 'heavy' scrambler)
+- tar and encrypted tar as new chunk types added
+### Changed
+- 64kB limit of chunks and whole data snake raised to 16MB limit (3 byte length)
+### Fixed
+- Bug when returning substitution map from medium and heavy scrambler removed
+- Bug that auto installer did not exited scramb.py correctly removed
+- Bug that command line arguments where mixed / not parsed correctly
+### Limitations
+- PKI should only work with normal installation under linux up to now
+
 ## 0.3.1 - 2022-01-22
 ### Added
 
