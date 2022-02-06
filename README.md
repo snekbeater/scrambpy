@@ -299,6 +299,13 @@ He uploads the scrambled image to a website
 
 8. If a password is used, the informer cannot descramble the image without the correct password. He/She then still gets the disguise image with scrambled content patched in.
 
+## GnuPG Public Key Infrastructure Usage
+
+Scramb.py can now use PGP to scramble images with a public key, so that only the person in posession of the private key can descramble the image.
+
+PKI is now included in this alpha version and was not tested under Windows. Help is much appreciated if someone could test it and give hints what to correct (e.g. GPG homedir is a problem under windows).  
+
+More information will follow in this whitepaper on scramb.py's PKI usage.
 
 # Details
 
