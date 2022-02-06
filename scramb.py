@@ -3,7 +3,7 @@
 #
 # Scramb.py is a region based JPEG Image Scrambler 
 #
-VERSION = "0.3.1"
+VERSION = "0.4.0 alpha"
 #
 # For updates see git repo at:
 # https://github.com/snekbeater/scrambpy
@@ -59,7 +59,8 @@ except ImportError:
 		print("")
 		print("Installation code done")
 		input("Please press Enter to leave and then restart scramb.py as you just did before ...")
-		sys.exit()
+	sys.exit()
+
 
 
 from PIL import Image, ImageDraw, ImageFilter, ImageChops
@@ -72,7 +73,11 @@ import pickle # serialize dictionaries V01
 import json   # serialize dictionaries V02
 import hashlib # for password hash generation
 from getpass import getpass # for getting the password from commandline
-
+import time # for real random number generation of pki scrambler
+import binascii # for real random number generation of pki scrambler
+import secrets # for real random number generation of pki scrambler
+import tarfile # Tar Module: https://docs.python.org/3/library/tarfile.html
+from gzip import GzipFile   # for public key image
 
 
 HEADER_VERSION_MAGIC_NUMBER = 42
@@ -80,8 +85,12 @@ HEADER_VERSION_MAGIC_NUMBER = 42
 CHUNK_TYPE_RAW = 0 			# raw data, not more specified
 CHUNK_TYPE_TEXT = 1 			# text
 CHUNK_TYPE_PNG	= 2			# png
-CHUNK_TYPE_IMAGE_INFO = 3			# image info
+CHUNK_TYPE_IMAGE_INFO = 3		# image info
 CHUNK_TYPE_SCRAMBLER_PARAMETERS = 4	# scrambler parameters
+CHUNK_TYPE_PUBLIC_KEY = 5		# public key
+CHUNK_TYPE_TAR = 6			# tar.gz
+CHUNK_TYPE_ENCRYPTED_TAR = 7		# encrypted tar.gz
+
 #      ...
 CHUNK_TYPE_EXTENDED_HEADER = 64	# extended header (more bytes follow e.g. bigger size, other types, future stuff)
 	
@@ -101,6 +110,32 @@ STANDARD_JPEG_QUALITY = 100	# standard save quality
 # If you do not trust encoded stuff in code you run, you can erase this constant.
 # You then just do not get a logo anymore
 LOGO = b"\x80\x03C\x92\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00]\x00\x00\x00\x06\x01\x00\x00\x00\x00\x89C\xafZ\x00\x00\x00YIDATx\x9c\x01N\x00\xb1\xff\x00`\x00\x02\x10\x08\x02\x10\x00\x00\x02\x07(\x020\x00\x00\x00\x00\xfe\x80\x00\x00\x00\xfd\x80\x02\xb3l\xf1\x820\xaaH3l\xf1\x80\x00\x04\xe1\xff\xb7\xc3\x10\x00\xbc\x11\xd6\xb7\xc3\x8c\x02p\x08\x00\xff\x00\xa8\x00\xd0\x08\x00\xfd\x00\x02\xcf\xfc\x01?\xf0\x00\xc0O\xfc\x01P\x10S\xe2\x1a'o\x8da/\x00\x00\x00\x00IEND\xaeB`\x82q\x00."
+
+
+
+
+def importGnuPG():
+	# GnuPG Module: https://docs.red-dove.com/python-gnupg/
+	try:
+		importlib.import_module("gnupg")
+	except ImportError:
+		print("python-gnupg is not installed with your Python installation!")
+		print("")
+		print("You can install it yourself or scramb.py can do this for you.")
+		print("Do it yourself with: pip install python-gnupg          on Linux")
+		print("                     pip.exe install python-gnupg      on Windows")
+		print("")
+		print("(Note that there is also a package 'gnupg' which is not used here)")
+		print("")
+		answer = input("Do you want scramb.py to install it for you now? [y/n]")
+		if answer == "y":
+			# from https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
+			subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'])
+			subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'python-gnupg'])
+			print("")
+			print("Installation code done")
+			input("Please press Enter to leave and then restart scramb.py as you just did before ...")
+		sys.exit()
 
 
 
@@ -272,7 +307,7 @@ def deserialize(image, length):
 	direction = 0
 	i = 0
 	# TODO %8 images.. no more needed, since scrambled images always are %8=0
-	## coorect /8 images
+	# correct /8 images
 	fullLine = math.floor(image.width / 8)
 	fullColumn = math.floor(image.height / 8)
 	
@@ -337,40 +372,66 @@ def copyBlock(imageSource,imageDest, xposSource, yposSource, xposDest, yposDest)
 	block = imageSource.crop((xposSource,yposSource,xposSource+8,yposSource+8))
 	imageDest.paste(block,(xposDest,yposDest),mask=None)
 
-def createChunk(data, chunkType, mode=0, eec=0):
+def createChunk(data, chunkType):
 
 	#future:
-	# type byte  8   7        654321
-	#            EEC 1or2bbp  type ID
+	# type bit:  7    6             543210
+	#            EEC? extendedSize  type ID
 	#
-	#Type IDs:
+	#Type IDs (bits 0-5):
 	#       0  raw data, not more specified
 	#       1  text
 	#       2  png
 	#       3  image info
 	#	4  scrambler parameters
 	#      ...
-	#      64  extended header (more bytes follow e.g. bigger size, other types)
-	if (len(data) > pow(2,16)):
+	#      64  extended header (more bytes follow as a header e.g. other types, special stuff)
+	#
+	#extended Size (bit 6):
+	#	=0 -> chunk max     65.536 bytes, 2 bytes size follow
+	#	=1 -> chunk max 16.777.216 bytes, 3 bytes size follow
+
+	if (len(data) >= pow(2,24)):
 		print("Chunk is bigger than allowed. Panic")
 		sys.exit(3)	
+	elif (len(data) >= pow(2,16)):
+		loByte = len(data) & 255
+		midByte = (len(data) >> 8) & 255
+		hiByte = (len(data) >> 16) & 255
 
-	loByte = len(data) & 255
-	hiByte = len(data) >> 8
-	data.insert(0,chunkType)
-	data.insert(1,hiByte)
-	data.insert(2,loByte)
+		chunkType = chunkType | 64 # switch bit for extended size
+
+		data.insert(0,chunkType)
+		data.insert(1,hiByte)
+		data.insert(2,midByte)
+		data.insert(3,loByte)
+	else:
+		loByte = len(data) & 255
+		hiByte = len(data) >> 8
+		data.insert(0,chunkType)
+		data.insert(1,hiByte)
+		data.insert(2,loByte)
 	return data
 
 def decodeChunkType(data, seek):
 	return data[seek] & 63
 
+def decodeChunkExtendedLength(data, seek):
+	return data[seek] & 64 > 0
+
 def decodeChunkLength(data, seek):
-	return (data[seek+1] << 8) + data[seek+2]
+	# returns tupel (header bytes, data bytes)
+	if decodeChunkExtendedLength(data, seek):
+		return (4, (data[seek+1] << 16) + (data[seek+2] << 8) + data[seek+3])
+	else:
+		return (3, (data[seek+1] << 8) + data[seek+2])
 
 def getChunkData(data, seek):
-	length = decodeChunkLength(data, seek)
-	return data[seek+3:seek+3+length]
+	(headerlength, length) = decodeChunkLength(data, seek)
+	if decodeChunkExtendedLength(data, seek):
+		return data[seek+4:seek+4+length]
+	else:
+		return data[seek+3:seek+3+length]
 
 def createImageInfo(image):
 	data = []
@@ -544,6 +605,32 @@ def mixSubstitutionMatrix(matrix, seed = 0, percentOfTurns = 20):
 
 
 
+
+
+def mixSubstitutionMap_ultra(substitutionMap, seed = 0, rounds = 4):
+	# really totally mixed
+	randnumbers = random_uniform_sample(len(substitutionMap)*rounds*2, [0,len(substitutionMap)*2000], seed=seed)
+
+	substitutionMapTemp = []
+
+	i = 0
+	for rou in range(rounds):
+		while len(substitutionMap) > 0:
+			value = substitutionMap.pop(randnumbers[i]%len(substitutionMap))
+			substitutionMapTemp.append(value)
+			i = i + 1
+
+		
+
+		while len(substitutionMapTemp) > 0:
+			value = substitutionMapTemp.pop(randnumbers[i]%len(substitutionMapTemp))
+			substitutionMap.insert(0,value)
+			i = i + 1
+
+	return substitutionMap
+
+
+
 def mixSubstitutionMap_heavy(substitutionMap, seed = 0, rounds = 4):
 	# total mixed
 	randnumbers = random_uniform_sample(len(substitutionMap)*rounds, [0,len(substitutionMap)-1], seed=seed)
@@ -613,8 +700,25 @@ def transferBlocks(sourceImage, sourceMaskImage, targetImage, targetMaskImage):
 
 	
 
+def scrambleBlocksOfImageWithCopy(substitutionMapSource, substitutionMap, image, reverse=False):
+	# image must have %8=0 pixel width/height at this point!
+	# mask and thus subMap must fit to that!
+	sourceim = image.copy()
+	for ii in range(len(substitutionMap)):
+		blocksWidth = math.floor(image.width / 8)
+		if reverse:
+			i = len(substitutionMap) - 1 - ii
+		else:
+			i = ii
+		x1 = substitutionMapSource[i] % blocksWidth
+		y1 = math.floor(substitutionMapSource[i] / blocksWidth)
+		x2 = substitutionMap[i] % blocksWidth
+		y2 = math.floor(substitutionMap[i] / blocksWidth)
+		copyBlock(sourceim,image, x1*8, y1*8,x2*8,y2*8)
+	return image
 
-def scrambleBlocksOfImage(substitutionMapSource, substitutionMap, image, reverse=False):
+
+def scrambleBlocksOfImageWithSwitch(substitutionMapSource, substitutionMap, image, reverse=False):
 	# image must have %8=0 pixel width/height at this point!
 	# mask and thus subMap must fit to that!
 	for ii in range(len(substitutionMap)):
@@ -629,6 +733,41 @@ def scrambleBlocksOfImage(substitutionMapSource, substitutionMap, image, reverse
 		y2 = math.floor(substitutionMap[i] / blocksWidth)
 		switchBlocks(image, x1*8, y1*8,x2*8,y2*8)
 	return image
+
+
+
+
+
+
+def createRandomSubMaskImage(pngMaskSource, seed=0):
+	mode = '1'
+	color = (0)
+	subMaskImage = Image.new(mode, (pngMaskSource.width,pngMaskSource.height), color)	
+	randomPixels = random_uniform_sample(pngMaskSource.height * pngMaskSource.width, [0,1], seed)
+	
+
+	for y in range(pngMaskSource.height):
+		for x in range(pngMaskSource.width):
+			luma = pngMaskSource.getpixel((x,y))			
+			if luma > 0:
+				subMaskImage.putpixel((x,y), randomPixels[x*y])
+	return subMaskImage
+
+
+def invertSubMaskImage(pngMaskSource, subMaskImageSource):
+	mode = '1'
+	color = (0)
+	subMaskImage = Image.new(mode, (pngMaskSource.width,pngMaskSource.height), color)	
+
+	for y in range(pngMaskSource.height):
+		for x in range(pngMaskSource.width):
+			luma = pngMaskSource.getpixel((x,y))			
+			if luma > 0:
+				subMaskImage.putpixel((x,y), 1 - subMaskImageSource.getpixel((x,y)))
+	return subMaskImage
+
+
+
 
 def placeLogo(image, xpos, ypos):
 	if ("LOGO" in globals()): # check if LOGO constant exists in case the user deletes it for security
@@ -703,8 +842,32 @@ def countBlocksOfMask(maskimage):
 
 
 
+def createTar():
+	tarFile = BytesIO()
+	tar = tarfile.open(fileobj=tarFile, mode="w:gz")
+	return (tarFile, tar)
+
+def openTar(bytesData):
+	tarFile = BytesIO()
+	tarFile.write(bytesData)
+	tarFile.seek(0)	
+	tar = tarfile.open(fileobj=tarFile, mode="r:gz")
+	return tar
 
 
+
+
+def insertFileIntoTar(tar, filename, bytesData):
+	binaFile = BytesIO()
+	binaFile.write(bytesData)
+	membertarinfo = tarfile.TarInfo(filename)
+	membertarinfo.size = binaFile.getbuffer().nbytes
+	binaFile.seek(0)
+	tar.addfile(membertarinfo, fileobj=binaFile)
+	binaFile.close()
+
+def closeTar(tar):
+	tar.close()
 
 
 def printHelp():
@@ -712,14 +875,15 @@ def printHelp():
 	print("Scramble:")
 	print("    scramb.py -i <inputfile> [-m <mask.png/.jpg>] -o <outputfile.jpg>  [OPTIONS]")
 	print("        You must use -m and/or -s for scramb.py to detect that you want to scramble")
-	print("")
 	print("Descramble:")
 	print("    scramb.py <inputfile.jpg>                        (also usable for drag & drop)")
 	print("    scramb.py -i <inputfile.jpg> -o <outputfile.jpg>")
-	print("")
 	print("Calculate Residue:")
 	print("    scramb.py -r <imagefile1.jpg> <imagefile2.jpg>")
-	print("")
+	print("Create GnuPG Public Key Image:")
+	print("    scramb.py --export-public-key <key-id> -i <center-image> -o <outputfile.jpg>")
+	print("Import GnuPG Public Key Image into your keyring:")
+	print("    scramb.py <publicKeyImageFile.jpg>               (also usable for drag & drop)")
 	print("Options")
 	print("    -x <number>   specific parameter for the chosen scrambler")
 	print("    -y <number>   specific parameter for the chosen scrambler")
@@ -728,11 +892,14 @@ def printHelp():
 	print("                  matrix   x=seed y=turn percentage")
 	print("                  medium   x=seed y=rounds z=distance")
 	print("                  heavy    x=seed y=rounds")
+	print("                  ultra    x=seed y=rounds")
+	print("                  pki      x=seed y=rounds k=keyID (uses 'ultra' scrambler)")
 	print("    -2            blowup image by 2x")
 	print("    --quality     JPEG Output Quality 0-100, 100=best, default=100")
 	print("    --no-logo     do not include Logo in Image")
 	print("    -t \"<text>\"   embed text to show when descrambling (max. 400 chars)")
 	print("    --silent      do not pause on descramble for displaying text")
+	print("                  also do not pause for user random input when using 'pki' scrambler")
 	print("    -p            scramble with password (ask for it)")
 	print("    --password=<password>")
 	print("                  scramble with <password> (caution: it's then in your console history...)")
@@ -745,6 +912,10 @@ def printHelp():
 	print("                           is used as a thumbnail (the disguise image)")
 	print("                  When descrambling: This is the disguise image that is patched with")
 	print("                           the patch image provided by -i") 
+	print("    -k            GnuPG public key-ID within your keyring to scramble with 'pki' scrambler")
+	print("                  To descramble this image you need to have the matching private key in your keyring")
+	# TODO --create-config-file
+
 
 
 #-------------------------------main-------------------------------
@@ -755,9 +926,6 @@ print("For updates see git repo at https://github.com/snekbeater/scrambpy")
 print("    This program comes with ABSOLUTELY NO WARRANTY.")
 print("    This is free software, and you are welcome to redistribute it")
 print("    under certain conditions; see code for details.")
-
-
-
 
 inputfilename = ""
 maskfilename = ""
@@ -777,6 +945,15 @@ isScrambleModeSelected = False
 overwrite = False
 disguisefilename = ""
 isDisguiseEnabled = False
+isKeyExportModeSelected = False
+
+#TODO homedir must be set user friendly, only when you want to use gpg etc
+homedir = (os.environ['HOME']) + "/.gnupg"
+# for windows:
+#gpg = gnupg.GPG(homedir='new',
+#            binary="C:/Progra~2/GNU/GnuPG/pub/gpg2.exe")
+
+
 
 
 if len(sys.argv) == 1:
@@ -785,7 +962,7 @@ if len(sys.argv) == 1:
 
 try:
 	# TODO all ops work & present in help?
-	opts, args = getopt.getopt(sys.argv[1:],"?h2i:s:m:o:d:r:x:y:z:t:p",["no-logo","password=","stealth","silent","quality=","overwrite"])
+	opts, args = getopt.getopt(sys.argv[1:],"?h2i:s:m:o:d:r:x:y:z:t:k:p",["no-logo","password=","stealth","silent","quality=","overwrite","export-public-key=","create-config-file"])
 except getopt.GetoptError:
 	printHelp()
 	sys.exit(2)
@@ -817,23 +994,23 @@ for opt, arg in opts:
 	elif opt == '-m':
 		maskfilename = arg
 		isScrambleModeSelected = True
-	elif opt in ("-i"):
+	elif opt == "-i":
 		inputfilename = arg
-	elif opt in ("-o"):
+	elif opt == "-o":
 		outputfilename = arg
-	elif opt in ("-d"):
+	elif opt == "-d":
 		disguisefilename = arg
 		isDisguiseEnabled = True
-	elif opt in ("-p"):
+	elif opt == "-p":
 		isPasswordSet = True
-	elif opt in ("--password"):
+	elif opt == "--password":
 		password = arg
 		isPasswordSet = True
-	elif opt in ("--stealth"):
+	elif opt == "--stealth":
 		hidePasswordUse = True
-	elif opt in ("--no-logo"):
+	elif opt == "--no-logo":
 		isLogoEnabled = False
-	elif opt in ("-r"):
+	elif opt == "-r":
 		filename1 = arg
 		filename2 = args[0]
 		img1 = Image.open(filename1)
@@ -845,6 +1022,23 @@ for opt, arg in opts:
 		print("Residual: ",residu)
 		diff.show()
 		sys.exit()
+	elif opt == "--export-public-key":
+		keyID = arg
+		isKeyExportModeSelected = True
+	elif opt == "-k":
+		keyID = arg
+	elif opt == "--create-config-file":
+		# TODO: to be used with pki, loading config file is not implemented yet
+		jsonParts = {"gnupg":
+				 { "homedir": "",
+				"binarydir": ""
+					}    }
+		json_formatted_str = json.dumps(jsonParts, indent=4, sort_keys=True)
+		with open("scrambpy.cfg", "wt") as outfile:
+			outfile.write(json_formatted_str)
+			outfile.close()
+		sys.exit()
+
 
 
 
@@ -880,9 +1074,60 @@ if (isPasswordSet):
 	passwordSeed = calculatePasswordSeed(password)
 
 
+if isKeyExportModeSelected:
+	importGnuPG()
+	import gnupg
+	gpg = gnupg.GPG(gnupghome=homedir)
+	print("Key ID:",keyID)
+	ascii_armored_public_key = gpg.export_keys(keyID)
+	print(ascii_armored_public_key)
+
+	mybytes = []
+		
+	im = Image.open(inputfilename)
+
+	print("Image size ", im.size)
 
 
+	if not im.mode == "RGB":
+		print("Image mode is",im.mode,", converting it to RGB")
+		im = im.convert("RGB")
 
+	mybytes = mybytes + createChunk(createImageInfo(im),3)
+
+
+	memoryFile = BytesIO()
+	gz = GzipFile( fileobj=memoryFile, mode='w'  )
+	gz.write(bytearray(ascii_armored_public_key,"utf-8"))
+	gz.close()
+	print("Zip length", len(memoryFile.getvalue()))
+	chunkbytes = createChunk(list(memoryFile.getvalue()),CHUNK_TYPE_PUBLIC_KEY)
+
+
+	#myrawdata = list(bytearray(ascii_armored_public_key,"utf-8"))
+	#chunkbytes = createChunk(myrawdata, CHUNK_TYPE_PUBLIC_KEY)
+	mybytes = mybytes + chunkbytes
+
+
+	checksum = calculateChecksum(mybytes)
+	print("Checksum: ", checksum)
+	mybytes = mybytes + [checksum]
+	
+	# finalize, write main header	
+	mybytes = createChunk(mybytes, HEADER_VERSION_MAGIC_NUMBER + HEADER_VERSION_ENCODER )
+
+	print("Serialize Data...")
+	(imageWithMetadata,imagePosX, imagePosY) = serialize(im, mybytes)
+
+	if isLogoEnabled:
+		imageWithMetadata = placeLogo(imageWithMetadata,imagePosX, imagePosY - 8)
+
+
+	print("Writing image to disk")
+	imageWithMetadata.save(outputfilename, quality=outputQuality)
+
+
+	sys.exit()
 
 
 if isScrambleModeSelected:
@@ -1064,6 +1309,7 @@ if isScrambleModeSelected:
 	
 
 		print("mixing..")
+		# TODO salt for password scramble
 		mixSubstitutionMatrix(substitutionMatrix, seed = seed + passwordSeed, percentOfTurns = percentOfTurns)
 
 
@@ -1082,10 +1328,6 @@ if isScrambleModeSelected:
 		if (len(substitutionMap) > 100000):
 			print("SubMap Size might be too big, will probably run a long time")
 		substitutionMapSource = substitutionMap.copy() 
-
-
-
-
 	
 		seed = scramblerParameters[0]
 		if scramblerParameters[1] > 0:
@@ -1098,25 +1340,175 @@ if isScrambleModeSelected:
 			dist = 10
 			
 
-
-
-
 		if scrambler == "medium":
 			print("Using scrambler: medium")
-			substituationMap = mixSubstitutionMap_medium(substitutionMap, seed=seed + passwordSeed, distance=dist, rounds=rou)
+			substitutionMap = mixSubstitutionMap_medium(substitutionMap, seed=seed + passwordSeed, distance=dist, rounds=rou)
 		else:
 			print("Using scrambler: heavy")
 			scrambler = "heavy"
-			substituationMap = mixSubstitutionMap_heavy(substitutionMap, seed=seed + passwordSeed, rounds=rou)
-	
-
-		scrambleBlocksOfImage(substitutionMapSource, substitutionMap, im, reverse=False)
+			substitutionMap = mixSubstitutionMap_heavy(substitutionMap, seed=seed + passwordSeed, rounds=rou)
+			
+		#print(substitutionMap)
+		#print(substitutionMapSource)
+		scrambleBlocksOfImageWithSwitch(substitutionMapSource, substitutionMap, im, reverse=False)
 
 
 
 		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_SEED] = seed
 		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_ROUNDS] = rou 
 		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_DISTANCE] = dist
+
+	elif (scrambler == "ultra"):
+		substitutionMap = createSubstitutionMapFromMask(pngim)
+		print("SubMap Size", len(substitutionMap))
+		if (len(substitutionMap) > 100000):
+			print("SubMap Size might be too big, will probably run a long time")
+		substitutionMapSource = substitutionMap.copy() 
+
+	
+		seed = scramblerParameters[0]
+		if scramblerParameters[1] > 0:
+			rou = scramblerParameters[1]
+		else:
+			rou = 2
+
+		print("Using scrambler: ultra")
+		scrambler = "ultra"
+		substitutionMap = mixSubstitutionMap_ultra(substitutionMap, seed=seed + passwordSeed, rounds=rou)
+			
+		#print(substitutionMap)
+		#print(substitutionMapSource)
+		scrambleBlocksOfImageWithCopy(substitutionMapSource, substitutionMap, im, reverse=False)
+
+
+
+		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_SEED] = seed
+		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_ROUNDS] = rou 
+
+
+
+	elif (scrambler == "pki"):
+
+
+
+		print("Using scrambler: pki destructive")
+		scrambler = "pki"
+
+		importGnuPG()
+		import gnupg
+
+		seed = scramblerParameters[0]
+		if scramblerParameters[1] > 0:
+			rou_scramb = scramblerParameters[1]
+		else:
+			rou_scramb = 2
+		if scramblerParameters[2] > 0:	
+			maxrou = scramblerParameters[2]
+		else:
+			maxrou = 3
+
+		imageMasks = [pngim]
+		seeds = [seed + passwordSeed]
+		
+		# we create random submasks, these are non-retrivable (made random with user input and time) and thus must be encrypted
+		# this is the destructive part of this scrambler
+		print("----------------------------------------------------------------------------")
+		print("To help mix the image blocks totally random, please provide random input "+str(maxrou)+" times.")
+		print("You can use characters, numbers and normal special characters.")
+		print("Your input is not shown.")
+		print("Press enter to confirm and switch to the next input.")
+		entropy = ''
+		for rou in range(maxrou):
+			s = ""
+			if (not isSilent):
+				s = getpass("Enter something [" + str(rou+1) + " of "+str(maxrou)+"]: ")
+			s = s + str(secrets.randbelow(10000000))
+			entropy = entropy + s + '|' + str(time.time()) + '|'
+			startSeed = str(binascii.hexlify(hashlib.sha256(entropy.encode('ascii')).digest()))[2:-1]
+			hashy = hashlib.sha256(startSeed.encode('ascii')).digest()
+			bigRand = int.from_bytes(hashy, 'big')
+			
+			subMaskImage = createRandomSubMaskImage(pngim, bigRand)
+			#subMaskImage.show()
+		
+			imageMasks.append(subMaskImage)
+
+			nextSeed = startSeed + '|' + str(time.time())
+			hashy = hashlib.sha256(nextSeed.encode('ascii')).digest()
+			bigRand = int.from_bytes(hashy, 'big')
+			seeds.append(bigRand)
+		
+		
+		i = 0
+		for maskImage in imageMasks:
+		
+			substitutionMap = createSubstitutionMapFromMask(maskImage)
+			print("SubMap Size", len(substitutionMap))
+			if (len(substitutionMap) > 100000):
+				print("SubMap Size might be too big, will probably run a long time")
+			substitutionMapSource = substitutionMap.copy() 
+
+
+			substitutionMap = mixSubstitutionMap_ultra(substitutionMap, seeds[i] , rounds=rou_scramb)
+				
+			#print(substitutionMap)
+			print("Moving image blocks...")
+			scrambleBlocksOfImageWithCopy(substitutionMapSource, substitutionMap, im, reverse=False)
+			i = i + 1
+
+
+		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_SEED] = seed
+		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_ROUNDS] = rou_scramb 
+
+
+		#write submap through pki
+
+		json_subSeeds = json.dumps( seeds[1:len(seeds)], separators=(',', ':'))
+
+
+		(tarFile, tar) = createTar()
+		insertFileIntoTar(tar, "subseeds.json", bytearray(json_subSeeds,"utf-8"))
+
+		i = 0
+		for maskImage in imageMasks[1:len(imageMasks)]:
+			i = i + 1
+			memoryFile = BytesIO()
+			
+			
+			#maskImage.save(memoryFile, format='PNG', optimize=True, icc_profile=None)			
+			# no compression so that tar.gz can do more compression with all files together
+			maskImage.save(memoryFile, format='PNG', compress_level=0, icc_profile=None)
+			insertFileIntoTar(tar, "submask"+str(i)+".png", memoryFile.getbuffer())
+
+		closeTar(tar)
+
+
+
+		gpg = gnupg.GPG(gnupghome=homedir)
+		print("Using key:",keyID)
+		encrypted_tar_data = gpg.encrypt(tarFile.getbuffer(), keyID, armor=False)
+
+
+		# Output tar as a file for testing purpose
+		'''		
+		with open("test.tar", "wb") as outfile:
+			# Copy the BytesIO stream to the output file
+			outfile.write(tarFile.getbuffer())
+		with open("test.tar.asc", "wb") as outfile:
+			# Copy the BytesIO stream to the output file
+			outfile.write(encrypted_tar_data.data)
+		'''
+
+		print("tar size          :", len(tarFile.getbuffer()))
+		print("tar size encrypted:", len(encrypted_tar_data.data))
+
+
+		chunkbytes = createChunk(list(encrypted_tar_data.data),CHUNK_TYPE_ENCRYPTED_TAR)
+
+
+		mybytes = mybytes + chunkbytes
+
+
 	else:
 		print("Unknown Scrambler: ", scrambler)
 		print("Giving up")
@@ -1181,7 +1573,7 @@ else:
 
 	print("Decoding Header")
 
-	myRestoredBytes, marginLeft, marginTop = deserialize(savedim, 3) # decode first 3 bytes (header+length)
+	myRestoredBytes, marginLeft, marginTop = deserialize(savedim, 4) # decode first 4 bytes (header+length)
 
 
 	dataHeader = decodeChunkType(myRestoredBytes, 0)
@@ -1194,16 +1586,16 @@ else:
 		print("Giving up")
 		sys.exit(3)
 
-	totalBlocks = decodeChunkLength(myRestoredBytes, 0)
+	(headerlength, totalBlocks) = decodeChunkLength(myRestoredBytes, 0)
 	print("Data Blocks: ", totalBlocks)
 
 
 	print("Decoding All Data Blocks")
 
-	myRestoredBytes, marginLeft, marginTop = deserialize(savedim, totalBlocks+3)
+	myRestoredBytes, marginLeft, marginTop = deserialize(savedim, totalBlocks+headerlength)
 
 
-	checksumCalc = calculateChecksum(myRestoredBytes[3:len(myRestoredBytes)-1])
+	checksumCalc = calculateChecksum(myRestoredBytes[headerlength:len(myRestoredBytes)-1])
 	checksumStored = myRestoredBytes[len(myRestoredBytes)-1]
 	print("Checksum stored    : ", checksumStored)
 	print("Checksum calculated: ", checksumCalc)
@@ -1228,21 +1620,22 @@ else:
 	print("Image starts at x=",offsetX," y=", offsetY)
 
 	pngimageread = []
+	encryptedTar = None
 
-	seek = 3
+	seek = headerlength
 	
 	finalImageDimensions = (0,0)
 
 	while seek < len(myRestoredBytes) - 1: #-1 because of checksum at the end
 		chunkType = decodeChunkType(myRestoredBytes, seek)
-		chunkLength = decodeChunkLength(myRestoredBytes, seek)
-		if chunkType == 0:	# Raw Data
+		(headerlength, chunkLength) = decodeChunkLength(myRestoredBytes, seek)
+		if chunkType == CHUNK_TYPE_RAW:	# Raw Data
 			print("Chunk: Raw Data")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
 
-			seek = seek + chunkLength + 3
-		elif chunkType == 1:	# Output Ascii Text
+			seek = seek + chunkLength + headerlength
+		elif chunkType == CHUNK_TYPE_TEXT:	# Output Ascii Text
 			print("Chunk: Text")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
@@ -1252,9 +1645,9 @@ else:
 			print("----------------------------------------------------------------------------")
 			if not isSilent:
 				input("Press Enter to continue with descrambling...")
-			seek = seek + chunkLength + 3
+			seek = seek + chunkLength + headerlength
 
-		elif chunkType == 2:	# png file
+		elif chunkType == CHUNK_TYPE_PNG:	# png file
 			print("Chunk: PNG File")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
@@ -1262,13 +1655,13 @@ else:
 			#print(bytearray(chunkData).decode("utf-8"))
 		
 			pngfile = BytesIO(bytearray(chunkData))
-		
+
 			pngimageread.append(Image.open(pngfile))
 			print("Images embedded so far:",len(pngimageread))
 			#pngimage.show()
-			seek = seek + chunkLength + 3
+			seek = seek + chunkLength + headerlength
 
-		elif chunkType == 3:	# image info
+		elif chunkType == CHUNK_TYPE_IMAGE_INFO:	# image info
 			print("Chunk: Image Info")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
@@ -1276,9 +1669,9 @@ else:
 			finalImageDimensions = decodeImageInfo(chunkData)
 			print("Image Width : ", finalImageDimensions[0])
 			print("Image Height: ", finalImageDimensions[1])
-			seek = seek + chunkLength + 3
+			seek = seek + chunkLength + headerlength
 
-		elif chunkType == 4:	# scrambler parameters
+		elif chunkType == CHUNK_TYPE_SCRAMBLER_PARAMETERS:	# scrambler parameters
 			print("Chunk: Scrambler Parameters")
 			print("Length: ", chunkLength)
 			chunkData = getChunkData(myRestoredBytes, seek)
@@ -1287,11 +1680,81 @@ else:
 			else:
 				received_params = json.loads(bytearray(chunkData).decode("utf-8"))
 			print("Parameters: ", received_params)
-			seek = seek + chunkLength + 3
+			seek = seek + chunkLength + headerlength
+		elif chunkType == CHUNK_TYPE_PUBLIC_KEY:
+			print("Chunk: Public Key")
+			print("Length: ", chunkLength)
+
+			importGnuPG()
+			import gnupg
+
+			chunkData = getChunkData(myRestoredBytes, seek)
+
+		
+			zipfile = BytesIO(bytearray(chunkData))
+		
+			gz = GzipFile( fileobj=zipfile, mode='r'  )
+			inzipi = gz.read()
+			intexti=bytearray(inzipi).decode("utf-8")
+			gz.close()
+			gpg = gnupg.GPG(gnupghome=homedir)
+			print("----------------------------------------------------------------------------")
+			print("This image is a PGP public key scramb.py image")
+			while True:
+				print("Do you want to")
+				print("   e : export public key to .asc file")
+				print("   s : show details of key (automatically generates .asc file like choice 'e')")
+				print("   i : import public key into your keyring")
+				print("   q : quit")
+				choice = input("Choice? [e/s/i/q]")
+
+				if choice == "E" or choice =="e" or choice == "S" or choice =="s":
+					outputfilename = os.path.splitext(inputfilename)[0]+'_key.asc'
+					print("Output filename for public key : ",outputfilename)
+					if (not overwrite) and os.path.exists(outputfilename):
+						answer = input("Overwrite existing output file ?[y/n]")
+						if not answer == "y":
+							sys.exit()
+					keyfile = open(outputfilename,'w')
+					keyfile.write(intexti)
+					keyfile.close()
+				if choice == "S" or choice =="s":
+					keys = gpg.scan_keys(outputfilename)
+					keynumber = 1
+					for key in keys:
+						print("  Key number",keynumber)
+						infos = ('keyid','type','uids','issuer')
+						for info in infos:
+							if info in key:
+								print("    ",info,"=",key[info])
+						keynumber = keynumber + 1
+				elif choice == "I" or choice =="i":
+					print("Importing key...")
+					import_result = gpg.import_keys(intexti)
+					print("Imported keys:",import_result.count)
+					print("Imported keys fingerprints",import_result.fingerprints)
+					print("Done")
+					sys.exit()
+				else:
+					sys.exit()
+				print("----------------------------------------------------------------------------")
+		elif chunkType == CHUNK_TYPE_TAR:
+			print("Chunk: Tarball")
+			print("Length: ", chunkLength)
+			seek = seek + chunkLength + headerlength
+
+		elif chunkType == CHUNK_TYPE_ENCRYPTED_TAR:
+			print("Chunk: Encrypted Tarball")
+			print("Length: ", chunkLength)
+
+			encryptedTarData = getChunkData(myRestoredBytes, seek)
+
+			seek = seek + chunkLength + headerlength
+
 		else: # unknown
 			print("Chunk: UNKNOWN TYPE", chunkType)
 			print("Length: ", chunkLength)
-			seek = seek + chunkLength + 3
+			seek = seek + chunkLength + headerlength
 		
 	
 	scrambler = received_params[SCRAMBLERPARAMETERSDATAFIELD_SCRAMBLER]
@@ -1383,15 +1846,119 @@ else:
 
 		if scrambler == "medium":
 			print("Using scrambler: medium")
-			substituationMap = mixSubstitutionMap_medium(substitutionMap, seed=seed + passwordSeed, distance=dist, rounds=rou)
+			substitutionMap = mixSubstitutionMap_medium(substitutionMap, seed=seed + passwordSeed, distance=dist, rounds=rou)
 		else:
 			print("Using scrambler: heavy")
 			scrambler = "heavy"
-			substituationMap = mixSubstitutionMap_heavy(substitutionMap, seed=seed + passwordSeed, rounds=rou)
+			substitutionMap = mixSubstitutionMap_heavy(substitutionMap, seed=seed + passwordSeed, rounds=rou)
 
 		print("Descrambling...")
 
-		scrambleBlocksOfImage(substitutionMapSource, substitutionMap, savedim, reverse=True)
+		scrambleBlocksOfImageWithSwitch(substitutionMapSource, substitutionMap, savedim, reverse=True)
+
+
+	elif (scrambler == "ultra"):
+
+		seed =  received_params[SCRAMBLERPARAMETERSDATAFIELD_SEED]
+		rou = received_params[SCRAMBLERPARAMETERSDATAFIELD_ROUNDS]
+
+		substitutionMap = createSubstitutionMapFromMask(pngimageread[0])
+		if (len(substitutionMap) > 100000):
+			print("SubMap Size might be too big, will probably run a long time")
+		substitutionMapSource = substitutionMap.copy() 
+
+		print("Using scrambler: ultra")
+		scrambler = "ultra"
+		substitutionMap = mixSubstitutionMap_ultra(substitutionMap, seed=seed + passwordSeed, rounds=rou)
+
+		print("Descrambling...")
+
+		scrambleBlocksOfImageWithCopy(substitutionMap, substitutionMapSource, savedim, reverse=True)
+
+
+
+	elif (scrambler == "pki"):
+		print("Using scrambler: pki destructive")
+		importGnuPG()
+		import gnupg
+
+		seed =  received_params[SCRAMBLERPARAMETERSDATAFIELD_SEED]
+		rou = received_params[SCRAMBLERPARAMETERSDATAFIELD_ROUNDS]
+
+		print("Calling gpg for decryption...")
+		gpg = gnupg.GPG(gnupghome=homedir)
+		decryptedTarData = gpg.decrypt(bytearray(encryptedTarData))
+
+		# test export for ... testing
+		'''
+		#with open("test_decoded.tar.asc", "wb") as outfile:
+		#	# Copy the BytesIO stream to the output file
+		#	outfile.write(bytearray(encryptedTarData))
+		'''
+
+		if not decryptedTarData.ok:
+			print("Decryption failed.")
+			print("Reason: ",decryptedTarData.status)
+			print("Note that entering the passphrase through a commandline/tty agent is not possible with python / scramb.py.")
+			print("Try to switch GnuPG to GUI Mode or unlock your keys before starting scramb.py.")
+			sys.exit(3)
+
+		print("decrypted")
+
+		tar = openTar(decryptedTarData.data)
+		
+	
+		print(tar.getmembers())
+
+		# check if tar is a malicious decompression bomb		
+		decompressedSize = 0
+		for tarinfo in tar:
+			decompressedSize = decompressedSize + tarinfo.size
+		if decompressedSize > 1024*1024*20:  # encrypted tar shouldn't be bigger than 20 MB
+			# TODO: Future idea: do a compressed / decompressed ratio check rather than just the size
+			print("----------------------------------------------------------------------------")			
+			print("Tar archive contains",decompressedSize, "Bytes of files")
+			print("This seems wrong and might be a decompression bomb.")
+			answer = input("Do you want to proceed (Suggestion: no) ?[y/n]")
+			if not answer == "y":
+				sys.exit()
+
+
+		jsonFile = tar.extractfile("subseeds.json")
+
+		subseeds = json.loads(bytearray(jsonFile.read()).decode("utf-8"))
+		print(subseeds)
+
+		subseeds.insert(0, seed + passwordSeed)
+
+		maskImages = [pngimageread[0]]
+		
+		for i in range(len(subseeds)-1):
+			maskImageFile = tar.extractfile("submask"+str(i+1)+".png")
+			#pngfile = BytesIO(bytearray(maskImageFile.read()))
+
+			maskImages.append(Image.open(maskImageFile))
+		
+		
+
+		for ii in range(len(maskImages)):
+			i = len(maskImages) - ii - 1
+			substitutionMap = createSubstitutionMapFromMask(maskImages[i])
+			print("SubMap Size", len(substitutionMap))
+			if (len(substitutionMap) > 100000):
+				print("SubMap Size might be too big, will probably run a long time")
+			substitutionMapSource = substitutionMap.copy() 
+
+
+			substitutionMap = mixSubstitutionMap_ultra(substitutionMap, subseeds[i] , rounds=rou)
+
+			#print(substitutionMap)
+			print("Moving image blocks...")
+			#scrambleBlocksOfImage(substitutionMapSource, substitutionMap, savedim, reverse=True)
+			scrambleBlocksOfImageWithCopy(substitutionMap, substitutionMapSource, savedim, reverse=True)
+
+
+
 
 
 
