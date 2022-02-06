@@ -33,8 +33,9 @@
 - All you need to descramble the image is encoded in a data „snake“ around the image. The scrambled image is thus a bit wider as the original.
 - You can select different scramble modes.
   - When you slightly scramble a region, a thumbnail of the image can still be recognized.
-  - If you use the heavy scrambler, you cannot guess the content.
+  - If you use the ultra scrambler, you cannot guess the content.
 - You can set a password
+- You can scramble and descramble images using GnuPG PKI public key infrastructure
 - You can include short text messages that will show up upon descramble
 - Easy to use: Windows Drag & Drop descramble
 - Survives multiple re-encodings of an image down to JPEG quality around 30 something, when the image gets ugly and blocky still chances that they decode
@@ -140,7 +141,23 @@ You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 
 You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 
+### Scramble with GnuPG PKI (Linux)
 
+`./scramb.py -i <inputfile> [-m <mask.png/.jpg>] -o <outputfile.jpg> -s pki -k <key-id> [OPTIONS]`
+
+### Create GnuPG Public Key Image (Linux)
+
+`./scramb.py --export-public-key <key-id> -i <center-image> -o <outputfile.jpg>`
+
+Creates a "business card" image that features <center-image> in the middle surrounded by your public key within the data snake.
+The public key is exactly the same type as the one you would use for an encrypted email correspondance.
+  
+### Import GnuPG Public Key Image into your keyring (Linux)
+
+`./scramb.py <publicKeyImageFile.jpg>`
+  
+A menu will ask you what you want to do with the public key (import in keyring, export into .asc file).
+  
 ### Patch Mode Scramble (Windows)
 
 `python.exe scramb.py -i <inputfile> -d <disguisefile> -m <maskfile> -o <patchfile.jpg> [OPTIONS]`
@@ -186,6 +203,9 @@ scramb.py will then generate a patch-image.
 ## -2
 Blowup image by 2x
 
+## -k
+GnuPG public key-ID within your keyring to scramble with `pki` scrambler. To descramble this image you need to have the matching private key in your keyring.
+  
 ## --quality=
 `--quality=10..100`
 
@@ -202,7 +222,7 @@ Embed text to show when descrambling (max. 400 chars)
 ## --silent
 Do not pause on descramble for displaying text
   
-Also do not pause for user random input when using `pki` scrambler.
+Also do not pause for user random input when using `pki` scrambler (not recommended exept testing situations).
 
 ## -p
 Scramble with password (ask for it)
