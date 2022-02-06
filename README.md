@@ -165,9 +165,14 @@ scrambler | x | y | z | What it does
 --- | --- | --- | --- | ---
 `matrix` | seed | turn percentage (10=10%, 100=100%, 170=170%) | - | turns a group of 2x2 blocks clockwise. Does not work on lonely pixels.
 `medium` | seed | rounds | distance | moves a block a maximum of *distance* left or right. Runs over all blocks *rounds* times.
-`heavy` | seed | rounds | - | moves every block somewhere else *rounds* times
+`heavy` | seed | rounds | - | moves every block somewhere else *rounds* times within a broad neighbourhood
+`ultra` | seed | rounds | - | moves every block somewhere else *rounds* times totally random
+`pki` | seed | rounds | - | uses GnuPG public key to scramble. Needs also `-k` for the key-id. Uses random user input and ultra scrambler
 
-  
+- matrix rotates 2x2 blocks
+- medium & heavy switch two blocks
+- ultra & pki copy blocks onto a new surface
+
 ## -d  
 `-d <disguiseimage.jpg>`
 
@@ -196,6 +201,8 @@ Embed text to show when descrambling (max. 400 chars)
 
 ## --silent
 Do not pause on descramble for displaying text
+  
+Also do not pause for user random input when using `pki` scrambler.
 
 ## -p
 Scramble with password (ask for it)
@@ -320,7 +327,9 @@ You can set a password which is used to alter the seed of the random number gene
 
 Be aware that the password system and the used Random Number Generator are nowhere near security and not tested for that application.
 Consider the password system to be like a cheap padlock.
-  
+
+Scramb.py scrambles 8x8 Pixel blocks of a JPEG image. Thus, everything within these 8x8 Blocks stays "in clear text". If e.g. the image features a logo / text small as 8 pixels chances are that blocks contain this text in the scrambled version of the image.
+
 ## Text
 You can add a short text to be shown while descramble
 This text is *not* password protected
@@ -339,14 +348,9 @@ Windows use is easy for descramble
 Code is easy to follow so feel free to check it for backdoors. You can even delete the encoded logo.
 
 # Roadmap
-Upcoming features in next releases:
-  
-## Features that are working in dev
-- GnuPG Public Key Exchange and Scrambling with GnuPG Public Key System
-- Public Key Exchange Image (your "Business Card" with your public key)
-- Bug corrected in heavy & medium scrambler
-- Large chunks in data snake (> 65kB)
-- Tar.gz file handling in data snake
+## Upcoming features in next releases:
+- Config file for PKI Scrambler
+- PKI working under Windows
 
 ## Features that are prototyped
 - JavaScript version for Website and Greasemonkey integration
