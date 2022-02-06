@@ -149,7 +149,7 @@ You must use `-m` and/or `-s` for scramb.py to detect that you want to scramble.
 
 `./scramb.py --export-public-key <key-id> -i <center-image> -o <outputfile.jpg>`
 
-Creates a "business card" image that features <center-image> in the middle surrounded by your public key within the data snake.
+Creates a "business card" image that features `<center-image>` in the middle surrounded by your public key within the data snake.
 The public key is exactly the same type as the one you would use for an encrypted email correspondance.
   
 ### Import GnuPG Public Key Image into your keyring (Linux)
