@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file.
 
 
+
+
+## 0.4.1-alpha - 2022-02-22
+### Added
+### Changed
+### Fixed
+- Bug when running under Windows and no HOME environment variable set fixed
+
+
 ## 0.4.0-alpha - 2022-02-06
 ### Added
 - GnuPG PKI public key image "business card" generation
