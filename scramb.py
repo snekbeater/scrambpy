@@ -3,7 +3,7 @@
 #
 # Scramb.py is a region based JPEG Image Scrambler 
 #
-VERSION = "0.4.0 alpha"
+VERSION = "0.4.1 alpha"
 #
 # For updates see git repo at:
 # https://github.com/snekbeater/scrambpy
@@ -948,7 +948,10 @@ isDisguiseEnabled = False
 isKeyExportModeSelected = False
 
 #TODO homedir must be set user friendly, only when you want to use gpg etc
-homedir = (os.environ['HOME']) + "/.gnupg"
+if ('HOME' in os.environ):
+	homedir = (os.environ['HOME']) + "/.gnupg"
+else:
+	homedir = ""
 # for windows:
 #gpg = gnupg.GPG(homedir='new',
 #            binary="C:/Progra~2/GNU/GnuPG/pub/gpg2.exe")
