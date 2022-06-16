@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 
+## 0.5.0 - 2022-06-16
+### Added
+- Cloak Mode added to disguise a scrambled image further or overlay it with another image
+### Changed
+### Fixed
 
 
 ## 0.4.1-alpha - 2022-02-22
