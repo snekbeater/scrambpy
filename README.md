@@ -1,6 +1,13 @@
 # Scramb.py
 **Scramb.py** is a region based JPEG Image Scrambler and Descrambler written in Python for End-to-End-Encrypted (E2EE) Image distribution through unaware channels.
 
+## Current version: 0.5.0 from 2022-06-16 is out!
+New: Cloak mode! Try it out!
+
+Run scramb.py -h for details!
+
+Description on this page will follow shortly!
+
 ![](img/overview2.png)
 
 **Start now:**
