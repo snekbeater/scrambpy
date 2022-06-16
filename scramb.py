@@ -3,7 +3,7 @@
 #
 # Scramb.py is a region based JPEG Image Scrambler 
 #
-VERSION = "0.4.1 alpha"
+VERSION = "0.5.0"
 #
 # For updates see git repo at:
 # https://github.com/snekbeater/scrambpy
@@ -90,7 +90,6 @@ CHUNK_TYPE_SCRAMBLER_PARAMETERS = 4	# scrambler parameters
 CHUNK_TYPE_PUBLIC_KEY = 5		# public key
 CHUNK_TYPE_TAR = 6			# tar.gz
 CHUNK_TYPE_ENCRYPTED_TAR = 7		# encrypted tar.gz
-
 #      ...
 CHUNK_TYPE_EXTENDED_HEADER = 64	# extended header (more bytes follow e.g. bigger size, other types, future stuff)
 	
@@ -102,6 +101,7 @@ SCRAMBLERPARAMETERSDATAFIELD_DISTANCE = 		'd'
 SCRAMBLERPARAMETERSDATAFIELD_PERCENTAGEOFTURNS = 	't'
 SCRAMBLERPARAMETERSDATAFIELD_PASSWORDUSED =		'p'
 SCRAMBLERPARAMETERSDATAFIELD_PATCHIMAGE =		'i'
+SCRAMBLERPARAMETERSDATAFIELD_CLOAKIMAGE =		'c'
 #
 STANDARD_JPEG_QUALITY = 100	# standard save quality
 
@@ -698,7 +698,107 @@ def transferBlocks(sourceImage, sourceMaskImage, targetImage, targetMaskImage):
 		copyBlock(sourceImage,targetImage,sx*8,sy*8,tx*8,ty*8)
 		copiedBlocks = copiedBlocks + 1
 
+
+def transferBlocksRandom(sourceImage, sourceMaskImage, targetImage, targetMaskImage, tint=None, randomTint=False, invertColor=False):
 	
+	blocksToCopy = countBlocksOfMask(targetMaskImage)
+
+	sx = -1
+	sy = 0
+	tx = -1
+	ty = 0
+	copiedBlocks = 0
+	while (copiedBlocks < blocksToCopy):
+		while True:
+			# TODO: might take a while when only a few allowed blocks are in source mask...
+			sx = random.randint(0,sourceMaskImage.width-1)
+			sy = random.randint(0,sourceMaskImage.height-1)
+			if (sourceMaskImage.getpixel((sx,sy)) > 0):
+				break
+				
+		while True:
+			tx = tx + 1
+			if  tx == targetMaskImage.width:
+				ty = ty + 1
+				tx = 0
+			if (targetMaskImage.getpixel((tx,ty)) > 0):
+				break
+				
+		copyBlock(sourceImage,targetImage,sx*8,sy*8,tx*8,ty*8)
+		if (tint != None) or randomTint or invertColor:
+			if randomTint:
+				r = random.randint(0,16)
+				g = random.randint(0,16)
+				b = random.randint(0,16)						
+				tint = (r*r,g*g,b*b)
+#				tint = (random.randint(0,255),random.randint(0,255),random.randint(0,255))
+			tintBlock(targetImage,tx,ty, tint, invertColor)
+		copiedBlocks = copiedBlocks + 1
+
+	
+	
+def tintBlock(image, sx, sy, tint=None, invertColor=False):
+		
+	for y in range(0,8):
+		for x in range(0,8):
+			r, g, b = image.getpixel((sx*8 + x,sy*8 + y))
+
+			if invertColor:
+				r = 255 - r
+				g = 255 - g
+				b = 255 - b
+			newColor = (r,g,b)
+
+			if tint != None:
+				tr, tg, tb = tint			
+				newColor = (int((r+tr)/ 2),int((g+tg)/ 2),int((b+tb)/ 2))
+			
+			# test result as stripes for comparison:
+			#if (x%2==0):
+			image.putpixel((sx*8+x,sy*8+y), newColor)
+
+
+def createShadowImageTargetBlock(image, sx, sy):
+	for y in range(0,8):
+		for x in range(0,8):
+			if (x%2==y%2):
+				image.putpixel((sx*8+x,sy*8+y), (0,0,0))
+			else:
+				image.putpixel((sx*8+x,sy*8+y), (255*(x%2),255*(y%2),255))
+
+def createShadowImageTargetBlocks( targetImage, targetMaskImage):
+	
+	for y in range(targetMaskImage.height):
+		for x in range(targetMaskImage.width):
+			luma = targetMaskImage.getpixel((x,y))			
+			if luma > 0:
+				createShadowImageTargetBlock(targetImage,x,y)
+
+
+
+def isShadowImageTargetBlock(image, sx, sy):
+	for y in range(0,8):
+		for x in range(0,8):
+			if (x%2==y%2):
+				if image.getpixel((sx*8+x,sy*8+y)) != (0,0,0):
+					return False
+			else:
+				if image.getpixel((sx*8+x,sy*8+y)) != (255*(x%2),255*(y%2),255):
+					return False
+	return True
+
+
+
+
+def stampShadowImage(image, shadowImage):
+	
+	for y in range(int(image.height / 8)):
+		for x in range(int(image.width / 8)):
+			if isShadowImageTargetBlock(image,x,y):
+				copyBlock(shadowImage,image,x*8,y*8,x*8,y*8)
+
+
+
 
 def scrambleBlocksOfImageWithCopy(substitutionMapSource, substitutionMap, image, reverse=False):
 	# image must have %8=0 pixel width/height at this point!
@@ -765,6 +865,20 @@ def invertSubMaskImage(pngMaskSource, subMaskImageSource):
 			if luma > 0:
 				subMaskImage.putpixel((x,y), 1 - subMaskImageSource.getpixel((x,y)))
 	return subMaskImage
+
+
+def invertMaskImage(pngMaskSource):
+	mode = '1'
+	color = (0)
+	subMaskImage = Image.new(mode, (pngMaskSource.width,pngMaskSource.height), color)	
+
+	for y in range(pngMaskSource.height):
+		for x in range(pngMaskSource.width):
+			subMaskImage.putpixel((x,y), 1 - pngMaskSource.getpixel((x,y)))
+	return subMaskImage
+
+
+
 
 
 
@@ -889,10 +1003,10 @@ def printHelp():
 	print("    -y <number>   specific parameter for the chosen scrambler")
 	print("    -z <number>   specific parameter for the chosen scrambler")
 	print("    -s <scrambler>")
-	print("                  matrix   x=seed y=turn percentage")
-	print("                  medium   x=seed y=rounds z=distance")
-	print("                  heavy    x=seed y=rounds")
-	print("                  ultra    x=seed y=rounds")
+	print("                  matrix   x=seed y=turn percentage     rotate neighbouring block groups")
+	print("                  medium   x=seed y=rounds z=distance   mixes neighbouring blocks")
+	print("                  heavy    x=seed y=rounds              mixes more far away blocks")
+	print("                  ultra    x=seed y=rounds              totally mixes blocks from whole image")
 	print("                  pki      x=seed y=rounds k=keyID (uses 'ultra' scrambler)")
 	print("    -2            blowup image by 2x")
 	print("    --quality     JPEG Output Quality 0-100, 100=best, default=100")
@@ -912,11 +1026,37 @@ def printHelp():
 	print("                           is used as a thumbnail (the disguise image)")
 	print("                  When descrambling: This is the disguise image that is patched with")
 	print("                           the patch image provided by -i") 
+	print("                  Cannot be used together with -c") # TODO: Remove, when -d and -c work together
 	print("    -k            GnuPG public key-ID within your keyring to scramble with 'pki' scrambler")
 	print("                  To descramble this image you need to have the matching private key in your keyring")
 	# TODO --create-config-file
 
-
+	print("    -c            Add Cloak: Several lines of random blocks of pixels taken from the original")
+	print("                  image are added at the right or bottom side (depending on orientation of")
+	print("                  input image). These duplicated blocks are then also used in scrambling.")
+	print("                  Works best with ultra scrambler and least with matrix scrambler.")
+	print("                  Cannot be used together with -d") # TODO: Remove, when -d and -c work together
+	print("    --cloak-mask <cloakmask.png>")
+	print("                  This mask is used as the source for the randomly copied blocks.")
+	print("                  If none is given, the -m mask is used")
+	print("    --cloak-all   Takes whole -i image as source for random blocks")
+	print("    --cloak-inverted")
+	print("                  Inverts the cloak mask (normally used when --cloak-mask is NOT used AND you want")
+	print("                  to use only blocks OUTSIDE the -m mask (= all blocks, that are not in the area")
+	print("                  to be scrambled. CAUTION: This option may look good but makes it super easy to")
+	print("                  remove all extra blocks used in cloaking the image!")
+	print("    --percent-cloaked <percent>")
+	print("                  How much percent of the cloak mask blocks should be added to the new lines.")
+	print("                  Lines are always fully filled. default=100")
+	print("    --cloak-tint <tint>")
+	print("                  Tints all colors of cloak blocks, with <tint> being:")
+	print("                  r,g,b  an rgb color value (values=0..255), e.g. for red --cloak-tint=255,0,0")
+	print("                  rainbow   use random colors")
+	print("    --cloak-tint-invert")
+	print("                  inverts all cloak blocks before they are tinted")
+	print("    --cloak-image <cloakimage.jpg>")
+	print("                  substitute the random cloak blocks with this image AFTER scrambling.")
+	print("                  Adjust visibility of this image with --percent-cloaked")
 
 #-------------------------------main-------------------------------
 
@@ -946,6 +1086,15 @@ overwrite = False
 disguisefilename = ""
 isDisguiseEnabled = False
 isKeyExportModeSelected = False
+isCloakEnabled = False
+cloakmaskfilename = ""
+cloakmaskmode = 0 # 0=not set, 1=all, 2=inverted
+percentCloaked = 100
+cloaktintstr = ""
+cloaktint = None
+isRandomTintEnabled = False
+isCloakTintInverted = False
+cloakimagefilename = ""
 
 #TODO homedir must be set user friendly, only when you want to use gpg etc
 if ('HOME' in os.environ):
@@ -965,7 +1114,7 @@ if len(sys.argv) == 1:
 
 try:
 	# TODO all ops work & present in help?
-	opts, args = getopt.getopt(sys.argv[1:],"?h2i:s:m:o:d:r:x:y:z:t:k:p",["no-logo","password=","stealth","silent","quality=","overwrite","export-public-key=","create-config-file"])
+	opts, args = getopt.getopt(sys.argv[1:],"?h2ci:s:m:o:d:r:x:y:z:t:k:p",["no-logo","password=","stealth","silent","quality=","overwrite","export-public-key=","create-config-file","cloak-mask=","cloak-all","cloak-inverted","percent-cloaked=","cloak-tint=","cloak-tint-invert","cloak-image="])
 except getopt.GetoptError:
 	printHelp()
 	sys.exit(2)
@@ -988,6 +1137,27 @@ for opt, arg in opts:
 		isScrambleModeSelected = True
 	elif opt == '-2':
 		blowup = True
+	elif opt == '-c':
+		isCloakEnabled = True
+	elif opt == "--percent-cloaked":
+		percentCloaked = int(arg)
+		#isCloakEnabled = True
+	elif opt == "--cloak-mask":
+		cloakmaskfilename = arg
+		#isCloakEnabled = True
+	elif opt == "--cloak-image":
+		cloakimagefilename = arg
+		isCloakEnabled = True	#TODO does it work to leave out -c and only use --cloak-image?
+	elif opt == "--cloak-all":
+		cloakmaskmode = 1
+		#isCloakEnabled = True
+	elif opt == "--cloak-inverted":
+		cloakmaskmode = 2
+		#isCloakEnabled = True
+	elif opt == "--cloak-tint":
+		cloaktintstr = arg
+	elif opt == "--cloak-tint-invert":
+		isCloakTintInverted = True
 	elif opt == '--overwrite':
 		overwrite = True
 	elif opt == '--silent':
@@ -1056,10 +1226,15 @@ if (not isScrambleModeSelected) and (len(args) == 1):
 
 
 
-print("Input   : ",inputfilename)
+print("Input      : ",inputfilename)
 if isDisguiseEnabled:
-	print("Disguise: ", disguisefilename)
-print("Output  : ",outputfilename)
+	print("Disguise   : ", disguisefilename)
+if isCloakEnabled and cloakmaskfilename != "":
+	print("Cloak mask : ", cloakmaskfilename)
+if isCloakEnabled and cloakimagefilename != "":
+	print("Cloak      : ", cloakimagefilename)
+	
+print("Output     : ",outputfilename)
 
 if overwrite:
 	print("Overwrite enabled")
@@ -1068,6 +1243,29 @@ if (not overwrite) and os.path.exists(outputfilename):
 	answer = input("Overwrite existing output file ?[y/n]")
 	if not answer == "y":
 		sys.exit()
+
+
+# TODO: Remove, when -d and -c work together
+if isDisguiseEnabled and isCloakEnabled:
+	print("Disguise (-d) and cloaking (-c) modes cannot be used together.")
+	print("Giving up")
+	sys.exit(3)
+		
+
+if cloaktintstr != "":
+	if cloaktintstr == "rainbow":
+		isRandomTintEnabled = True
+		print("Cloak tint (r,g,b): rainbow")
+	else:
+		cloaktintList = list(map(int, cloaktintstr.split(',')))
+		if len(cloaktintList) != 3 or (cloaktintList[0] < 0) or (cloaktintList[0] > 255) or (cloaktintList[1] < 0) or (cloaktintList[1] > 255) or (cloaktintList[2] < 0) or (cloaktintList[2] > 255):
+			print("Cloak tint value must be r,g,b with every value between 0..255")
+			print("Giving up")
+			sys.exit(3)
+		cloaktint = (cloaktintList[0],cloaktintList[1],cloaktintList[2])
+		print("Cloak tint (r,g,b):",cloaktint)
+
+
 
 
 if (isPasswordSet) and (password == ""):
@@ -1147,11 +1345,19 @@ if isScrambleModeSelected:
 		im = im.convert("RGB")
 
 
+	cloakImage = None
+	if cloakimagefilename != "":
+		cloakImage = Image.open(cloakimagefilename)
+		print("Cloak image size ", cloakImage.size)
+		if not cloakImage.mode == "RGB":
+			print("Image mode is",cloakImage.mode,", converting it to RGB")
+			cloakImage = cloakImage.convert("RGB")
+	
 
 	mybytes = []
 
 	# TODO: only do this at one place 
-	if not isDisguiseEnabled:
+	if not isDisguiseEnabled and not isCloakEnabled:
 		mybytes = mybytes + createChunk(createImageInfo(im),3)
 
 
@@ -1173,6 +1379,178 @@ if isScrambleModeSelected:
 	pngim = pngim.convert("1", dither=False)
 
 
+	originalWidth, originalHeight = im.size
+	if (originalWidth % 8 > 0) or (originalHeight % 8 > 0):
+		# correct % 8 > 0 images
+		originalIm = im.copy()
+		newWidth = int(math.ceil(originalWidth / 8)*8)
+		newHeight = int(math.ceil(originalHeight / 8)*8)
+
+		im = im.crop((0,0, newWidth, newHeight ))
+
+
+		overscanColumns = 8 - originalWidth % 8
+		if overscanColumns < 8:
+			print("Filling right side overscan")
+			rightStrip = originalIm.copy().crop((originalIm.width - 1,0,originalIm.width ,originalIm.height))
+			for i in range(overscanColumns):
+				im.paste(rightStrip,(originalIm.width + i, 0),mask=None)
+		overscanLines = 8 - originalIm.height % 8
+		if overscanLines < 8:
+			print("Filling bottom overscan")
+			bottomStrip = originalIm.copy().crop((0, originalIm.height - 1,originalIm.width,originalIm.height))
+			for i in range(overscanLines):
+				im.paste(bottomStrip,(0,originalIm.height + i),mask=None)
+
+
+
+
+	# Cloak
+	
+	if isCloakEnabled:
+		print("Cloak enabled")
+		
+		if percentCloaked < 10:
+			percentCloaked = 10
+		print("Percent cloaked:", percentCloaked)
+
+		cloakmask = pngim.copy()
+
+
+		if cloakmaskfilename != "" and (os.path.exists(cloakmaskfilename)):
+			cloakmask = Image.open(cloakmaskfilename)
+			if not cloakmask.size == maskDimensions:
+				cloakmask = cloakmask.resize(maskDimensions, resample=Image.NEAREST)
+				cloakmask = cloakmask.convert("1", dither=False)
+
+
+
+		if cloakmaskmode == 1:
+			print("Cloak mask mode: all")
+			cloakmaskDraw = ImageDraw.Draw(cloakmask)
+			cloakmaskDraw.rectangle((0 ,0 ,cloakmask.width ,cloakmask.height ), fill=(1))
+
+		if cloakmaskmode == 2:
+			print("Cloak mask mode: inverted")
+			cloakmask = invertMaskImage(cloakmask)			
+
+
+
+		numberOfBlocksOfMask = countBlocksOfMask(pngim)
+
+		numberOfCloakedBlocks = int(numberOfBlocksOfMask * (percentCloaked / 100))
+
+
+
+		# TODO add right/bottom lines according to aspect ratio of the original image
+		#      image will besquished the more percentage of blocks is used
+		#      and the newly appearing bottom right "rectangle" is not considered at all
+		#      in this simple calculation
+		numberOfLines = math.ceil(numberOfCloakedBlocks / (pngim.height + pngim.width))
+		
+
+
+		#numberOfCloakedBlocks = numberOfLines * pngim.height
+		print("Adding", numberOfLines,"cloaking lines to the right and bottom")
+
+			
+		im = im.crop((0,0,im.width + numberOfLines * 8,im.height + numberOfLines * 8))
+
+
+		# extend mask
+		pngim = pngim.crop((0,0,pngim.width + numberOfLines ,pngim.height + numberOfLines))
+		pngimDraw = ImageDraw.Draw(pngim)
+		pngimDraw.rectangle((pngim.width-numberOfLines, 0,pngim.width,pngim.height), fill=(1))
+		pngimDraw.rectangle((0, pngim.height-numberOfLines,pngim.width,pngim.height), fill=(1))
+
+
+		# extend cloakmask
+		cloakmask = cloakmask.crop((0,0,cloakmask.width + numberOfLines ,cloakmask.height + numberOfLines))
+		cloakmaskDraw = ImageDraw.Draw(cloakmask)
+		cloakmaskDraw.rectangle((cloakmask.width-numberOfLines, 0,cloakmask.width,cloakmask.height), fill=(0))
+		cloakmaskDraw.rectangle((0,cloakmask.height-numberOfLines,cloakmask.width,cloakmask.height), fill=(0))
+
+
+		# create destination mask
+		cloakdestmask = cloakmask.copy()
+		cloakdestmaskDraw = ImageDraw.Draw(cloakdestmask)
+		cloakdestmaskDraw.rectangle((0, 0,cloakmask.width,cloakmask.height), fill=(0))
+		cloakdestmaskDraw.rectangle((cloakmask.width-numberOfLines, 0,cloakmask.width,cloakmask.height), fill=(1))
+		cloakdestmaskDraw.rectangle((0,cloakmask.height-numberOfLines,cloakmask.width,cloakmask.height), fill=(1))
+
+
+		# TODO remove...
+		'''
+
+		# always use full lines
+		# portrait or landscape?
+		if pngim.width < pngim.height:
+			# portrait
+			numberOfLines = math.ceil(numberOfCloakedBlocks / pngim.height)
+			numberOfCloakedBlocks = numberOfLines * pngim.height
+			print("Adding", numberOfLines,"cloaking lines to the right")
+
+			
+			im = im.crop((0,0,im.width + numberOfLines * 8,im.height))
+
+
+			# extend mask
+			pngim = pngim.crop((0,0,pngim.width + numberOfLines ,pngim.height))
+			pngimDraw = ImageDraw.Draw(pngim)
+			pngimDraw.rectangle((pngim.width-numberOfLines, 0,pngim.width,pngim.height), fill=(1))
+
+			# extend cloakmask
+			cloakmask = cloakmask.crop((0,0,cloakmask.width + numberOfLines ,cloakmask.height))
+			cloakmaskDraw = ImageDraw.Draw(cloakmask)
+			cloakmaskDraw.rectangle((cloakmask.width-numberOfLines, 0,cloakmask.width,cloakmask.height), fill=(0))
+
+			# create destination mask
+			cloakdestmask = cloakmask.copy()
+			cloakdestmaskDraw = ImageDraw.Draw(cloakdestmask)
+			cloakdestmaskDraw.rectangle((0, 0,cloakmask.width,cloakmask.height), fill=(0))
+			cloakdestmaskDraw.rectangle((cloakmask.width-numberOfLines, 0,cloakmask.width,cloakmask.height), fill=(1))
+			
+			
+		else:
+			# landscape
+			numberOfLines = math.ceil(numberOfCloakedBlocks / pngim.width)
+			numberOfCloakedBlocks = numberOfLines * pngim.width
+			print("Adding", numberOfLines,"cloaking lines to the bottom")
+
+			im = im.crop((0,0,im.width,im.height + numberOfLines * 8))
+			
+			# extend mask
+			pngim = pngim.crop((0,0,pngim.width  ,pngim.height + numberOfLines))
+			pngimDraw = ImageDraw.Draw(pngim)
+			pngimDraw.rectangle((0, pngim.height-numberOfLines,pngim.width,pngim.height), fill=(1))
+
+			# extend cloakmask
+			cloakmask = cloakmask.crop((0,0,cloakmask.width,cloakmask.height + numberOfLines ))
+			cloakmaskDraw = ImageDraw.Draw(cloakmask)
+			cloakmaskDraw.rectangle((0,cloakmask.height-numberOfLines,cloakmask.width,cloakmask.height), fill=(0))
+
+			# create destination mask
+			cloakdestmask = cloakmask.copy()
+			cloakdestmaskDraw = ImageDraw.Draw(cloakdestmask)
+			cloakdestmaskDraw.rectangle((0, 0,cloakmask.width,cloakmask.height), fill=(0))
+			cloakdestmaskDraw.rectangle((0,cloakmask.height-numberOfLines,cloakmask.width,cloakmask.height), fill=(1))
+		'''	
+
+		if cloakImage == None:
+			transferBlocksRandom(im, cloakmask, im, cloakdestmask, cloaktint, isRandomTintEnabled, isCloakTintInverted)
+		else:
+			createShadowImageTargetBlocks(im, cloakdestmask)
+		
+
+
+
+	if not isDisguiseEnabled and isCloakEnabled:
+		# saving the already resized image size when using cloaking ensures
+		# that older versions of scramb.py can decode the image although
+		# the cloak area then is left inside the image
+		mybytes = mybytes + createChunk(createImageInfo(im),3)
+
+
 
 	memoryFile = BytesIO()
 	pngim.save(memoryFile, format='PNG', optimize=True, icc_profile=None)
@@ -1186,8 +1564,8 @@ if isScrambleModeSelected:
 	'''
 	myrawdata = []
 	for b in range(65000):
-		myrawdata.append(random.randint(0,255))
-	chunkbytes = createChunk(myrawdata,0)
+		myrawdata.append(random.randint(0,255)
+	chunkbytes = createChunk(myrawdata,0))
 	mybytes = mybytes + chunkbytes
 
 
@@ -1221,28 +1599,15 @@ if isScrambleModeSelected:
 		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_PASSWORDUSED] = True
 
 
-	originalWidth, originalHeight = im.size
-	if (originalWidth % 8 > 0) or (originalHeight % 8 > 0):
-		# correct % 8 > 0 images
-		originalIm = im.copy()
-		newWidth = int(math.ceil(originalWidth / 8)*8)
-		newHeight = int(math.ceil(originalHeight / 8)*8)
-
-		im = im.crop((0,0, newWidth, newHeight ))
 
 
-		overscanColumns = 8 - originalWidth % 8
-		if overscanColumns < 8:
-			print("Filling right side overscan")
-			rightStrip = originalIm.copy().crop((originalIm.width - 1,0,originalIm.width ,originalIm.height))
-			for i in range(overscanColumns):
-				im.paste(rightStrip,(originalIm.width + i, 0),mask=None)
-		overscanLines = 8 - originalIm.height % 8
-		if overscanLines < 8:
-			print("Filling bottom overscan")
-			bottomStrip = originalIm.copy().crop((0, originalIm.height - 1,originalIm.width,originalIm.height))
-			for i in range(overscanLines):
-				im.paste(bottomStrip,(0,originalIm.height + i),mask=None)
+	if isCloakEnabled:
+		# save original size as a parameter for descrambling
+		scramblerParametersForDataField[SCRAMBLERPARAMETERSDATAFIELD_CLOAKIMAGE] = (originalWidth, originalHeight)
+
+
+
+
 
 	if isDisguiseEnabled:
 		print("Disguise Enabled")
@@ -1517,6 +1882,16 @@ if isScrambleModeSelected:
 		print("Giving up")
 		sys.exit(3)
 	
+	
+	
+	
+	# paste cloak image onto all cloak blocks
+	if cloakImage != None:
+		print("Stamping cloak image onto scrambled image")
+		if not cloakImage.size == im.size:
+			cloakImage = cloakImage.resize(im.size, resample=Image.NEAREST)
+	
+		stampShadowImage(im, cloakImage)
 	
 	
 	if isDisguiseEnabled:
@@ -1800,6 +2175,7 @@ else:
 		savedim = savedim.crop((offsetX,offsetY,offsetX+intermediateImageDimensions[0],offsetY+intermediateImageDimensions[1]))
 
 
+
 	if isDisguiseEnabled:
 		print("Disguise Enabled")
 		imDisguise = Image.open(disguisefilename)
@@ -1807,6 +2183,12 @@ else:
 		if not imDisguise.mode == "RGB":
 			print("Image mode is",imDisguise.mode,", converting it to RGB")
 			imDisguise = imDisguise.convert("RGB")
+
+		# TODO: IF cloak mode AND disguise image are given, resize imDisguise to dimensions given in scrambler params!
+		#       nope does not work, finalImageDimensions are dims of the PATCH !!! and c param dims are of
+		#       final img dimensions ... missing the cloaked one... :-/
+		#       enabling -c together with -d is now left out
+
 		#imDisguise.show()
 		transferBlocks(savedim, pngimageread[1], imDisguise, pngimageread[0])
 		savedim = imDisguise
@@ -1967,6 +2349,15 @@ else:
 
 	if (not intermediateImageDimensions == finalImageDimensions):
 		savedim = savedim.crop((0,0,finalImageDimensions[0],finalImageDimensions[1]))
+
+
+	# crop image if a cloak field is present
+	if SCRAMBLERPARAMETERSDATAFIELD_CLOAKIMAGE in received_params:
+		print("Removing cloak area...")
+		cloakedCrop = received_params[SCRAMBLERPARAMETERSDATAFIELD_CLOAKIMAGE]
+		print("...cropping image to",cloakedCrop)
+		savedim = savedim.crop((0,0,cloakedCrop[0], cloakedCrop[1]))
+
 
 	print("Writing image to disk")
 	savedim.save(outputfilename, quality=outputQuality)
