@@ -4,10 +4,6 @@
 ## Current version: 0.5.0 from 2022-06-16 is out!
 New: Cloak mode! Try it out!
 
-Run scramb.py -h for details!
-
-Description on this page will follow shortly!
-
 ![](img/overview2.png)
 
 **Start now:**
@@ -27,9 +23,12 @@ Description on this page will follow shortly!
 
 
 ## Use cases
+### Avoid report systems
 - Offend the easily offended *less*: Upload pictures to sites like Twitter, Facebook, DeviantArt etc. (esp. Social Media) that normally trigger people to report these *despite* being okay and according to TOS of the site.
+### Secure your images
 - Upload a pic as a teaser but give away the password only to a small section of people
 - Have a gallery with images showing no sign of a second meaning and distribute the patch images separatly.
+### Avoid automated scanning like European Union's chatcontrol
 - Use as End-to-End-Encryption E2EE method for websites, messaging systems, chats, email, etc.
 - Image Hosts / Websites / Chat & Messaging services are left unaware of image content
 - Prevent and circumvent automated scanning / image hashing / photo hashing and machine learning / AI recognition of images. Scramb.py helps bringing back the effort of scanning and analysing images to a manual and thus expensive, labor intensive level. It thus helps to prevent mass surveillance. Scramb.py builds another layer of encryption if E2EE of messaging services should be crippled or broken by new laws.
@@ -207,6 +206,56 @@ With `-d` scramb.py will take 3 images as input:
 
 scramb.py will then generate a patch-image.
 
+## -c
+Enabled Cloak mode
+
+When scrambling large uniform areas like skin, these areas still have a skin color after scramble. Especially when viewed as a thumbnail or run through automated scanning, these areas may still be recognized as (slightly fuzzy) skin.
+
+Cloak mode is ment to lay a "cloak" different colored blocks over the scramble area. It is a distraction feature and not a security feature. When using cloaking, you can change the perception of the overall color of your scrambled area through mixing in different colors. Cloaking works best especially in the perception of the scrambled image's thumbnail (viewed by humans or algorithms).
+
+Several lines of random blocks of pixels taken from the original image are added at the right and bottom side. These duplicated blocks are then also used in scrambling.
+  
+These random blocks can be:
+- tinted to a specific color
+- tinted invers to the original image, so that the scrambled overall image looks 50% grayscale in thumbnails
+- replaced by a totally different image alltogether
+
+Works best with ultra scrambler and least with matrix scrambler.
+
+Cannot be used together with -d disguise option.
+
+Subfeatures of cloak mode are:
+  
+### --cloak-mask <cloakmask.png>
+This mask is used as the source for the randomly copied blocks.
+
+If none is given, the `-m` mask is used
+
+### --cloak-all
+Takes whole `-i` image as source for random blocks
+### --cloak-inverted
+Inverts the cloak mask (normally used when `--cloak-mask` is NOT used AND you want to use only blocks OUTSIDE the `-m` mask (= all blocks, that are not in the area to be scrambled.
+  
+CAUTION: This option may look good but makes it super easy to remove all extra blocks used in cloaking the image!
+### --percent-cloaked <percent>
+How much percent of the cloak mask blocks should be added to the new lines.
+
+Lines are always fully filled.
+  
+default=100
+### --cloak-tint <tint>
+Tints all colors of cloak blocks, with `<tint>` being:
+
+- `r,g,b`  an rgb color value (values=0..255), e.g. for red --cloak-tint=255,0,0
+- `rainbow`   use random colors
+
+### --cloak-tint-invert
+inverts all cloak blocks before they are tinted
+
+### --cloak-image <cloakimage.jpg>
+substitute the random cloak blocks with this image AFTER scrambling. Adjust visibility of this image with `--percent-cloaked`
+
+
 ## -2
 Blowup image by 2x
 
@@ -250,6 +299,8 @@ Overwrite output file when it exists
 # Whitepaper
 
 Scramb.py was written to showcase how you can use image sharing / posting sites like Twitter, facebook, DeviantArt etc. and not be bothered by their automatic image scanning system. You are also not bothered by people who normally would be offended by your image and report it to the website if they could see it "clearly".
+  
+Scramb.py was also written to showcase how to build a new layer of image and data interchange for the situation in which a normally end-to-end encrypted communication channel is broken up by new laws. The European Union is currently (as of June 2022) proposing a new law in which service providers are allowed to break up encryption or scan private communication before it is encrypted under the pretext to countermeasure specific law violations by a minority. This proposal known in the media as "Chatcontrol" does exactly that: It takes away the communication privacy of all European Citizen. Images shared via *any* online service (which now *also* includes *private* chats like WhatsApp or Telegram) are subjected to automated *and* human scanning. 
   
 ## Passwordless mode with region scramble
 *Prevent reporting of images by casual users and automated scanning*
@@ -383,11 +434,12 @@ Code is easy to follow so feel free to check it for backdoors. You can even dele
 
 # Roadmap
 ## Upcoming features in next releases:
+- A GUI tool to draw masks and configure scramb.py scrambling (people gave feedback that scramb.py should be easier to use, especially using it without the need for a separate graphic editor like Photoshop)
+
+## Features that are postponed   
 - Config file for PKI Scrambler
 - PKI working under Windows
-
-## Features that are prototyped
-- JavaScript version for Website and Greasemonkey integration
+- JavaScript version for Website and Greasemonkey integration (probably not feasible anymore since scramb.py is too library depened right now)
 - 4 or 8 Bytes per Datablock instead of 1 Byte
 - ECC Error Correction
   
