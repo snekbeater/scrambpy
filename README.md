@@ -254,7 +254,15 @@ Enabled Cloak mode
 
 When scrambling large uniform areas like skin, these areas still have a skin color after scramble. Especially when viewed as a thumbnail or run through automated scanning, these areas may still be recognized as (slightly fuzzy) skin.
 
+![](img/thumb-kodim04.jpg) ![](img/thumb-kodim04_scrambled.jpg)
+
+Visually (especially as a thumbnail) these images are not that far apart. You still can guess it is naked skin under the scramble.
+  
 Cloak mode is ment to lay a "cloak" different colored blocks over the scramble area. It is a distraction feature and not a security feature. When using cloaking, you can change the perception of the overall color of your scrambled area through mixing in different colors. Cloaking works best especially in the perception of the scrambled image's thumbnail (viewed by humans or algorithms).
+
+![](img/thumb-kodim04.jpg) ![](img/thumb-kodim04_scrambled_cloaktint.jpg)
+
+Now a cloak has been added to the scrambled image.
 
 Several lines of random blocks of pixels taken from the original image are added at the right and bottom side. These duplicated blocks are then also used in scrambling.
   
@@ -274,6 +282,14 @@ This mask is used as the source for the randomly copied blocks.
 
 If none is given, the `-m` mask is used
 
+![](img/thumb-kodim04_cloakmask.jpg)
+
+this mask selects only the red hat and scarf for cloaking:
+  
+![](img/thumb-kodim04_scrambled_cloakmask.jpg)
+  
+  
+
 ### --cloak-all
 Takes whole `-i` image as source for random blocks
 ### --cloak-inverted
@@ -292,12 +308,26 @@ Tints all colors of cloak blocks, with `<tint>` being:
 - `r,g,b`  an rgb color value (values=0..255), e.g. for red --cloak-tint=255,0,0
 - `rainbow`   use random colors
 
+![](img/thumb-kodim04_scrambled_cloaktint.jpg)
+![](img/thumb-kodim04_scrambled_cloaktintrainbow.jpg)  
+
+Rainbow works best when used on the whole image:
+
+![](img/thumb-kodim04_scrambled_cloakall_tintrainbow.jpg)
+
 ### --cloak-tint-invert
-inverts all cloak blocks before they are tinted
+![](img/thumb-kodim04_scrambled_cloakall_tint_invert.jpg)
+
+Inverts all cloak blocks before they are tinted.
+
+This when used with `--percent-cloaked=100` results in a 50% grey looking image.
 
 ### --cloak-image <cloakimage.jpg>
-substitute the random cloak blocks with this image AFTER scrambling. Adjust visibility of this image with `--percent-cloaked`
+Substitute the random cloak blocks with this image AFTER scrambling. Adjust visibility of this image with `--percent-cloaked`
 
+![](img/thumb-kodim04_scrambled_cloakall_image.jpg)
+
+This is still the image of the woman in red, but the image of the parrots has been layed over it as a cloak.  
 
 ## -2
 Blowup image by 2x
