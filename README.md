@@ -64,6 +64,16 @@ New: Scramp.py Studio - create masks with a GUI!
 *In this example, only Lenna's face was scrambled and the scrambled image is password protected. You can actually try the example images in this repo with scramb.py yourself!*
 *Also, people get offended when Lenna is used (although, now we also have Fabio, which I use as a Black/White Test Image!... so, Lenna is scrambled here in this repo :-)*
 
+### Usage in Online Galleries
+
+You can host your scrambled images out of sight, out of censorship and out of reporting systems and automated scanning on different online image services!
+
+As an example, some images are hosted on [PostImages](https://postimages.org/) Image Hosting Service.
+
+![](img/gallery.jpg)
+
+Head over to this gallery [https://postimg.cc/gallery/bh5Zf9J](https://postimg.cc/gallery/bh5Zf9J) to see all of the Kodak Example Images scrambled with scramb.py!
+
 ### Patch for another Image
 ![](img/kodim21_patch.jpg)
 
