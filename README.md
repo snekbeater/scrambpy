@@ -4,7 +4,14 @@
 ## Current version: 0.5.0 from 2022-06-16 is out!
 New: Cloak mode! Try it out!
 
+New: Scramp.py Studio - create masks with a GUI!
+
 ![](img/overview2.png)
+
+
+![](img/scrambpystudio1.png)
+![](img/Lenna_heavy_pw.jpg)
+![](img/scrambpystudio2.png)
 
 **Start now:**
 - [Installation Windows & Linux](#installation)
@@ -62,6 +69,9 @@ New: Cloak mode! Try it out!
 
 *This is a patch image. Scramb.py can create these to separate transported images from their recreation metadata. The patch image is then used to "patch in" the scrambled image blocks next to the thumbnail you see here.*
 
+### Scramb.py Studio
+![](img/scrambpystudio1.png)
+
 
 ## Warning
 
@@ -83,7 +93,9 @@ scramb.py is written and runs in Python, so you have to install the Python inter
 
 ![](img/scrambpy.PNG)
 
-3. Install Pillow module, you can do this manually or let the scramb.py Script do this:
+3. (Optional) Download scrambpystudio.py, if you want to use a GUI for scramb.py. Place scrambpystudio.py in the same directory as scramb.py.
+
+4. Install Pillow module, you can do this manually or let the scramb.py Script do this:
    - **via Script:** Run scramb.py with a double click and if prompted, press `y` to install Pillow
    - **manually** locate `pip.exe` in your Python installation folder and run `pip.exe install Pillow` in a commandline
 
@@ -91,8 +103,9 @@ scramb.py is written and runs in Python, so you have to install the Python inter
 
 1. Install Python 3 if not already present (Ubuntu, Raspberry OS etc should have Python 3 installed already).
 2. Download scramb.py Script
-3. If not present, install Pillow with `pip install Pillow`
-4. Make the script executable `chmod +x scramb.py`
+3. (Optional) Download scrambpystudio.py, if you want to use a GUI for scramb.py. Place scrambpystudio.py in the same directory as scramb.py.
+4. If not present, install Pillow with `pip install Pillow`
+5. Make the script executable `chmod +x scramb.py`
 
 
 # Usage
@@ -134,8 +147,25 @@ To descramble an image, download it **in full resolution** and use its path as o
 
 ## Scramble
 
+### Scramble (GUI based with Scramb.py Studio)
+
+*Note that Scramb.py Studio is in its first release and pretty much featureless. If you want more than basic scramble, you as of now have to use the commandline.*
+
+1. Start scrambpystudio.py with double click or via commandline.
+2. Open the image to be scrambled
+3. Draw masked area. It will appear red. You can change brush type (circle / rectangle) and its size. Left mouse button draws, right mouse button erases but you can switch that around with the brush and eraser buttons.
+4. Select Scramble/Export scrambled image...
+
+Two Images will be saved in the same directory as the loaded image <filename>:
+
+- ORIGINALFILENAME_scst_mask.png
+- ORIGINALFILENAME_scst_scrambled.jpg
+
+As of now you cannot change these filenames nor is any error given if somehow something (within scramb.py) fails.
+
+The image is scrambled using `ultra` scrambler and the `-2` option. You again cannot change that as of now.
+
 ### Scramble (Windows)
-At this moment, drag & drop scrambling is not possible. You have to use the commandline or write a short batch file.
 
 `python.exe scramb.py -i <inputfile> [-m <mask.png/.jpg>] -o <outputfile.jpg>  [OPTIONS]`
 
@@ -173,6 +203,19 @@ A menu will ask you what you want to do with the public key (import in keyring, 
 
 `./scramb.py -i <inputfile> -d <disguisefile> -m <maskfile> -o <patchfile.jpg> [OPTIONS]`
 
+  
+  
+## Create Mask Image (GUI based with Scramb.py Studio)
+
+*Note that Scramb.py Studio is in its first release and pretty much featureless.*
+
+1. Start scrambpystudio.py with double click or via commandline.
+2. Open the image to be scrambled
+3. (Optional) Open an existing mask png image
+4. Draw masked area. It will appear red. You can change brush type (circle / rectangle) and its size. Left mouse button draws, right mouse button erases but you can switch that around with the brush and eraser buttons.
+5. Select File/Save mask image as... to save the PNG mask file
+
+![](img/scrambpystudio1.png)
 
 ## Calculate Residue
 `scramb.py -r <imagefile1.jpg> <imagefile2.jpg>`
@@ -361,7 +404,7 @@ He uploads the scrambled image to a website
 
 Scramb.py can now use PGP to scramble images with a public key, so that only the person in posession of the private key can descramble the image.
 
-PKI is now included in this alpha version and was not tested under Windows. Help is much appreciated if someone could test it and give hints what to correct (e.g. GPG homedir is a problem under windows).  
+PKI is now included in this version and was not tested under Windows. Help is much appreciated if someone could test it and give hints what to correct (e.g. GPG homedir is a problem under windows).  
 
 More information will follow in this whitepaper on scramb.py's PKI usage.
 
